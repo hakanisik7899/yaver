@@ -2,10 +2,15 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 
 /** Per-request client acting as the signed-in user (RLS applies). */
 export async function createClient() {
   const cookieStore = await cookies();
+  // With Cache Components, cookies() alone may still allow a runtime
+  // prerender; the Supabase client reads Date.now() while loading the
+  // session, which Next rejects there. Everything after this is request-time.
+  await connection();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
