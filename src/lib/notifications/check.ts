@@ -7,11 +7,10 @@ import { formatTime, nextDayStart, todayLocal } from "@/lib/time";
 import { registry } from "@/lib/tools";
 import { effectiveMode } from "@/lib/tools/policy";
 import type { PermissionMode } from "@/lib/tools/types";
-import { eventsStartingSoon, isAfterMorning, type NotificationPrefs } from "./rules";
+import { eventsStartingSoon, inDaytime, inMorningWindow, type NotificationPrefs } from "./rules";
 import { getPrefs, localTimeHHMM, notifyUser, type SendResult } from "./send";
 
 const MEETING_LEAD_MINUTES = 20;
-const OVERDUE_FROM = "09:00";
 const APPROVAL_WAIT_MINUTES = 60;
 const CONCURRENCY = 3;
 
@@ -67,10 +66,10 @@ async function checkUser(userId: string, now: Date): Promise<SendResult[]> {
   const results: SendResult[] = [];
 
   if (prefs.meetings && reads.calendar) results.push(...(await meetingReminders(userId, now, today, prefs)));
-  if (prefs.briefing && reads.calendar && isAfterMorning(time, prefs)) {
+  if (prefs.briefing && reads.calendar && inMorningWindow(time, prefs)) {
     results.push(await briefingReady(userId, today, prefs));
   }
-  if (prefs.overdue_tasks && reads.tasks && time >= OVERDUE_FROM && isAfterMorning(time, prefs)) {
+  if (prefs.overdue_tasks && reads.tasks && inDaytime(time)) {
     results.push(await overdueTasks(userId, today, prefs));
   }
   if (prefs.approvals) results.push(...(await waitingApprovals(userId, now, prefs)));
@@ -116,7 +115,7 @@ async function briefingReady(userId: string, today: string, prefs: NotificationP
   if (count) return "duplicate";
 
   const result = await getOrCreateBriefing(userId);
-  if (!result.ok) return "disabled";
+  if (!result.ok) return "failed";
   const { ai, events } = result.briefing;
   return notifyUser(
     userId,
@@ -139,7 +138,7 @@ async function overdueTasks(userId: string, today: string, prefs: NotificationPr
     .eq("status", "open")
     .lt("due_date", today)
     .limit(20);
-  if (!data?.length) return "disabled";
+  if (!data?.length) return "nothing";
   const first = data[0].title as string;
   return notifyUser(
     userId,

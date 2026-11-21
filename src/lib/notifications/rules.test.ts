@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eventsStartingSoon, isAfterMorning, isQuietTime, normalizePrefs } from "./rules";
+import { eventsStartingSoon, inDaytime, inMorningWindow, isQuietTime, normalizePrefs } from "./rules";
 
 describe("isQuietTime", () => {
   it("handles windows that cross midnight", () => {
@@ -16,13 +16,36 @@ describe("isQuietTime", () => {
   });
 });
 
-describe("isAfterMorning", () => {
-  const prefs = { quiet_start: "22:00", quiet_end: "07:00" };
-  it("is true from the end of quiet hours until they start again", () => {
-    expect(isAfterMorning("06:59", prefs)).toBe(false);
-    expect(isAfterMorning("07:00", prefs)).toBe(true);
-    expect(isAfterMorning("21:59", prefs)).toBe(true);
-    expect(isAfterMorning("22:30", prefs)).toBe(false);
+describe("inMorningWindow", () => {
+  it("runs from the end of quiet hours until noon", () => {
+    const prefs = { quiet_start: "22:00", quiet_end: "07:00" };
+    expect(inMorningWindow("06:59", prefs)).toBe(false);
+    expect(inMorningWindow("07:00", prefs)).toBe(true);
+    expect(inMorningWindow("11:59", prefs)).toBe(true);
+    expect(inMorningWindow("12:00", prefs)).toBe(false);
+    expect(inMorningWindow("21:59", prefs)).toBe(false);
+  });
+
+  it("never sends a morning summary late at night (regression: 00:00–06:00 quiet hours at 22:50)", () => {
+    const prefs = { quiet_start: "00:00", quiet_end: "06:00" };
+    expect(inMorningWindow("22:50", prefs)).toBe(false);
+    expect(inMorningWindow("06:30", prefs)).toBe(true);
+  });
+
+  it("gives late risers a 3-hour window", () => {
+    const prefs = { quiet_start: "02:00", quiet_end: "13:00" };
+    expect(inMorningWindow("13:00", prefs)).toBe(true);
+    expect(inMorningWindow("15:59", prefs)).toBe(true);
+    expect(inMorningWindow("16:00", prefs)).toBe(false);
+  });
+});
+
+describe("inDaytime", () => {
+  it("limits daily reminders to 09:00–21:00", () => {
+    expect(inDaytime("08:59")).toBe(false);
+    expect(inDaytime("09:00")).toBe(true);
+    expect(inDaytime("20:59")).toBe(true);
+    expect(inDaytime("22:50")).toBe(false);
   });
 });
 

@@ -44,7 +44,8 @@ export interface PushMessage {
   url?: string;
 }
 
-export type SendResult = "sent" | "no_devices" | "duplicate" | "disabled" | "quiet";
+/** "nothing": no notification was due; "failed": could not prepare it. */
+export type SendResult = "sent" | "no_devices" | "duplicate" | "disabled" | "quiet" | "nothing" | "failed";
 
 /**
  * Sends a push to all of the user's devices, at most once per kind+refKey.

@@ -34,9 +34,28 @@ export function isQuietTime(now: string, start: string, end: string): boolean {
   return start < end ? now >= start && now < end : now >= start || now < end;
 }
 
-/** True once the quiet window has ended for the day (and before it starts again). */
-export function isAfterMorning(now: string, prefs: Pick<NotificationPrefs, "quiet_start" | "quiet_end">): boolean {
-  return !isQuietTime(now, prefs.quiet_start, prefs.quiet_end) && now >= prefs.quiet_end;
+function addMinutes(hhmm: string, minutes: number): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const total = Math.min(h * 60 + m + minutes, 23 * 60 + 59);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/**
+ * The morning summary goes out only in the morning: from the end of quiet
+ * hours until noon (or for 3 hours if quiet hours end after noon). If the
+ * window is missed, nothing is sent that day; a "good morning" at night
+ * is worse than none.
+ */
+export function inMorningWindow(now: string, prefs: Pick<NotificationPrefs, "quiet_start" | "quiet_end">): boolean {
+  if (isQuietTime(now, prefs.quiet_start, prefs.quiet_end)) return false;
+  const start = prefs.quiet_end;
+  const end = start < "12:00" ? "12:00" : addMinutes(start, 180);
+  return now >= start && now < end;
+}
+
+/** Daytime window for non-urgent daily reminders (e.g. overdue tasks). */
+export function inDaytime(now: string, from = "09:00", to = "21:00"): boolean {
+  return now >= from && now < to;
 }
 
 export interface UpcomingEventInput {

@@ -13,5 +13,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const result = await runNotificationChecks();
+  // One line per run so the 5-minute schedule is visible in Vercel logs.
+  console.log("notify run", JSON.stringify(result));
   return Response.json(result);
 }
