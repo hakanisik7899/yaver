@@ -89,8 +89,8 @@ export function Chat() {
   }
 
   return (
-    <div className="flex min-h-[28rem] flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex-1 space-y-4 overflow-y-auto p-5">
+    <div className="flex min-h-[24rem] flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] lg:min-h-[28rem]">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
         {turns.length === 0 && (
           <div className="space-y-4">
             <p className="text-sm text-[var(--muted)]">
@@ -101,7 +101,7 @@ export function Chat() {
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="rounded-full border border-[var(--border)] px-3 py-1.5 text-sm hover:border-[var(--accent)]"
+                  className="rounded-full border border-[var(--border)] px-3.5 py-2 text-sm hover:border-[var(--accent)] active:bg-[var(--chip)]"
                 >
                   {s}
                 </button>
@@ -152,12 +152,14 @@ export function Chat() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Yaver'e sor… (ör. Bugün ne yapmalıyım?)"
           maxLength={4000}
-          className="flex-1 rounded-lg bg-transparent px-3 py-2 text-sm outline-none placeholder:text-[var(--muted)]"
+          // 16px on phones: iOS zooms into inputs with smaller text.
+          className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2.5 text-base outline-none placeholder:text-[var(--muted)] sm:text-sm"
+          enterKeyHint="send"
         />
         <button
           type="submit"
           disabled={busy || !input.trim()}
-          className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] disabled:opacity-40"
+          className="shrink-0 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-fg)] disabled:opacity-40"
         >
           Gönder
         </button>

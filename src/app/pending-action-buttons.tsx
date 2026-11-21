@@ -17,14 +17,14 @@ export function PendingActionButtons({ actionId }: { actionId: string }) {
             if (!res.ok) setError(res.message);
           })
         }
-        className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-[var(--accent-fg)] disabled:opacity-50"
+        className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] disabled:opacity-50"
       >
         Onayla
       </button>
       <button
         disabled={pending}
         onClick={() => startTransition(async () => void (await declineAction(actionId)))}
-        className="rounded-md border border-[var(--border)] px-3 py-1 text-xs disabled:opacity-50"
+        className="rounded-md border border-[var(--border)] px-4 py-2 text-sm disabled:opacity-50"
       >
         Reddet
       </button>

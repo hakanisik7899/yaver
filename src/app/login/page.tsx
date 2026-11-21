@@ -30,25 +30,26 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm space-y-6 text-center">
-        <div className="space-y-2">
+      <div className="w-full max-w-sm space-y-8 text-center">
+        <div className="space-y-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static SVG icon */}
+          <img src="/icon.svg" alt="" width={64} height={64} className="mx-auto rounded-2xl" />
           <h1 className="text-3xl font-semibold tracking-tight">Yaver</h1>
-          <p className="text-sm text-neutral-500">
-            Günlük işlerini anlayan, planlayan ve senin onayınla halleden
-            asistanın.
+          <p className="text-sm text-[var(--muted)]">
+            Günlük işlerini anlayan, planlayan ve senin onayınla halleden asistanın.
           </p>
         </div>
         <button
           onClick={signInWithGoogle}
           disabled={loading}
-          className="w-full rounded-lg bg-neutral-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="w-full rounded-xl bg-[var(--accent)] px-4 py-3.5 text-base font-medium text-[var(--accent-fg)] transition active:scale-[0.98] disabled:opacity-50"
         >
           {loading ? "Yönlendiriliyor…" : "Google ile devam et"}
         </button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <p className="text-xs text-neutral-400">
-          Takvimini yalnızca okuruz. Hiçbir değişiklik senin onayın olmadan
-          yapılmaz.
+        {error && <p className="text-sm text-red-500">{error}</p>}
+        <p className="text-xs text-[var(--muted)]">
+          Takvimini okuruz; bir etkinlik eklemek ya da değiştirmek gerektiğinde önce senin onayını
+          isteriz.
         </p>
       </div>
     </main>
