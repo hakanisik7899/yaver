@@ -7,6 +7,7 @@ import { activityLabel } from "@/lib/agent/tool-labels";
 import type { ChatStreamEvent } from "./api/chat/route";
 import { useSpeechInput } from "./use-speech";
 import { useSpeechOutput, type VoiceReplyMode } from "./use-speech-output";
+import { isStopPhrase } from "@/lib/speech/text";
 
 const SUGGESTIONS = [
   "Günümü özetle",
@@ -31,6 +32,15 @@ function SpeakerIcon({ muted }: { muted: boolean }) {
   );
 }
 
+function HeadsetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 14v-2a9 9 0 0 1 18 0v2" />
+      <path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z" />
+    </svg>
+  );
+}
+
 export function Chat({
   initialConversationId,
   initialTurns = [],
@@ -51,21 +61,97 @@ export function Chat({
     if (turns.length > 0) bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [turns]);
 
+  // Hands-free conversation: listen → answer aloud → listen again.
+  const [handsFree, setHandsFree] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const handsFreeRef = useRef(false); // read inside speech callbacks
+  const silentTries = useRef(0);
+  const wakeLock = useRef<WakeLockSentinel | null>(null);
+
   // Voice replies: spoken sentence by sentence while the answer streams.
-  const voice = useSpeechOutput();
+  const voice = useSpeechOutput({
+    onDone: () => {
+      // Reply finished speaking: open the mic again (short pause so the
+      // mic does not catch the tail of Yaver's own voice).
+      if (handsFreeRef.current) {
+        setTimeout(() => handsFreeRef.current && speech.start(), 350);
+      }
+    },
+  });
+
+  // Voice input: show words live in the input, send when the user stops talking.
+  const speech = useSpeechInput({
+    onInterim: (text) => setInput(text),
+    onFinal: (text) => {
+      if (handsFreeRef.current && isStopPhrase(text)) {
+        setInput("");
+        stopHandsFree("Görüşürüz!");
+        return;
+      }
+      silentTries.current = 0;
+      send(text, true);
+    },
+    onNothing: (error) => {
+      if (!handsFreeRef.current) return;
+      if (error === "not-allowed" || error === "service-not-allowed" || error === "audio-capture") {
+        stopHandsFree();
+        return;
+      }
+      // Give one more chance after silence, then end the conversation.
+      silentTries.current += 1;
+      if (silentTries.current >= 2) {
+        stopHandsFree();
+        setNotice("Bir süredir ses gelmediği için sesli sohbet kapandı.");
+        return;
+      }
+      speech.start();
+    },
+  });
+
+  function startHandsFree() {
+    handsFreeRef.current = true;
+    setHandsFree(true);
+    setNotice(null);
+    silentTries.current = 0;
+    voice.cancel();
+    voice.prime(); // the tap is the gesture iOS needs for later speech
+    speech.start();
+    // Keep the screen on while talking (supported on most phones).
+    navigator.wakeLock
+      ?.request("screen")
+      .then((lock) => (wakeLock.current = lock))
+      .catch(() => {});
+  }
+
+  function stopHandsFree(goodbye?: string) {
+    handsFreeRef.current = false;
+    setHandsFree(false);
+    speech.abort(); // discard a half-heard sentence
+    voice.cancel();
+    if (goodbye) {
+      voice.feed(goodbye + " ");
+      voice.flush();
+    }
+    wakeLock.current?.release().catch(() => {});
+    wakeLock.current = null;
+  }
+
+  // Leaving the page ends the conversation and frees the mic and screen lock.
+  useEffect(
+    () => () => {
+      handsFreeRef.current = false;
+      wakeLock.current?.release().catch(() => {});
+    },
+    [],
+  );
 
   function newChat() {
+    if (handsFreeRef.current) stopHandsFree();
     voice.cancel();
     setTurns([]);
     conversationId.current = undefined;
     if (initialConversationId) router.replace("/");
   }
-
-  // Voice input: show words live in the input, send when the user stops talking.
-  const speech = useSpeechInput({
-    onInterim: (text) => setInput(text),
-    onFinal: (text) => send(text, true),
-  });
 
   function startListening() {
     // Never let the mic hear Yaver's own voice.
@@ -83,7 +169,9 @@ export function Chat({
     const message = text.trim();
     if (!message || busy) return;
     voice.cancel();
-    const speak = voice.supported && (voice.mode === "always" || (voice.mode === "voice" && viaVoice));
+    const speak =
+      voice.supported &&
+      (handsFreeRef.current || voice.mode === "always" || (voice.mode === "voice" && viaVoice));
     // Typed sends come from a tap, so they can unlock speech on iOS here.
     if (speak && !viaVoice) voice.prime();
     setInput("");
@@ -121,11 +209,17 @@ export function Chat({
           else if (e.type === "tool") {
             const label = activityLabel(e.name);
             updateLast((t) => (t.tools.includes(label) ? t : { ...t, tools: [...t.tools, label] }));
-          } else if (e.type === "error") updateLast((t) => ({ ...t, error: e.message }));
+          } else if (e.type === "error") {
+            updateLast((t) => ({ ...t, error: e.message }));
+            // In a hands-free conversation the user may not be looking.
+            if (speak) voice.feed(e.message + " ");
+          }
         }
       }
     } catch {
-      updateLast((t) => ({ ...t, error: "Bağlantı kurulamadı. Lütfen tekrar dene." }));
+      const message = "Bağlantı kurulamadı. Lütfen tekrar dene.";
+      updateLast((t) => ({ ...t, error: message }));
+      if (speak) voice.feed(message + " ");
     } finally {
       if (speak) voice.flush();
       setBusy(false);
@@ -142,12 +236,23 @@ export function Chat({
             {initialConversationId ? "Kayıtlı sohbet" : "Sohbet"}
           </span>
           <div className="flex items-center gap-3">
-            {voice.speaking && (
+            {voice.speaking && !handsFree && (
               <button onClick={voice.cancel} className="text-xs font-medium text-red-500">
                 ■ Durdur
               </button>
             )}
-            {voice.supported && (
+            {voice.supported && speech.supported && !handsFree && (
+              <button
+                onClick={startHandsFree}
+                disabled={busy}
+                title="Elini kullanmadan karşılıklı konuş"
+                className="flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium disabled:opacity-40"
+              >
+                <HeadsetIcon />
+                Sesli sohbet
+              </button>
+            )}
+            {voice.supported && !handsFree && (
               <button
                 onClick={() => voice.setMode(NEXT_MODE[voice.mode])}
                 aria-label={`Sesli yanıt: ${MODE_LABEL[voice.mode]}. Değiştirmek için dokun.`}
@@ -171,6 +276,36 @@ export function Chat({
             )}
           </div>
         </div>
+      )}
+      {handsFree && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--accent-soft)] px-4 py-2.5 sm:px-5"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                speech.listening ? "animate-pulse bg-red-500" : voice.speaking ? "bg-[var(--accent)]" : "bg-[var(--muted)]"
+              }`}
+            />
+            {speech.listening ? "Dinliyorum…" : voice.speaking ? "Yaver konuşuyor…" : busy ? "Düşünüyor…" : "Sesli sohbet"}
+          </span>
+          <span className="flex items-center gap-3">
+            <span className="hidden text-xs text-[var(--muted)] sm:inline">
+              Bitirmek için &quot;tamam teşekkürler&quot; de
+            </span>
+            <button
+              onClick={() => stopHandsFree()}
+              className="rounded-lg bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-red-500"
+            >
+              Bitir
+            </button>
+          </span>
+        </div>
+      )}
+      {notice && !handsFree && (
+        <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)] sm:px-5">{notice}</p>
       )}
       <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
         {turns.length === 0 && (
@@ -244,7 +379,7 @@ export function Chat({
             <button
               type="button"
               onClick={speech.listening ? speech.stop : startListening}
-              disabled={busy}
+              disabled={busy || handsFree}
               aria-label={speech.listening ? "Dinlemeyi bitir" : "Sesle komut ver"}
               aria-pressed={speech.listening}
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-40 ${

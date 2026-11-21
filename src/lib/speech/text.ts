@@ -22,6 +22,54 @@ export function toSpeakable(text: string): string {
   );
 }
 
+const STOP_PHRASES = new Set([
+  "tamam",
+  "tamamdır",
+  "teşekkürler",
+  "teşekkür ederim",
+  "sağ ol",
+  "sağol",
+  "eyvallah",
+  "bitir",
+  "bitti",
+  "dur",
+  "kapat",
+  "yeter",
+  "görüşürüz",
+  "hoşça kal",
+  "sesli sohbeti kapat",
+  "sesli sohbeti bitir",
+]);
+
+/**
+ * Whether a spoken utterance only ends the hands-free conversation
+ * ("tamam teşekkürler", "bitir"). It must consist of stop words alone:
+ * "tamam, yarın 10'a toplantı ekle" is a command, not a goodbye.
+ */
+export function isStopPhrase(utterance: string): boolean {
+  const words = utterance
+    .toLocaleLowerCase("tr-TR")
+    .replace(/[.,!?;:…'"]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0 || words.length > 4) return false;
+
+  // Consume the utterance greedily with known phrases (longest first).
+  let i = 0;
+  while (i < words.length) {
+    let matched = 0;
+    for (let len = Math.min(3, words.length - i); len > 0; len--) {
+      if (STOP_PHRASES.has(words.slice(i, i + len).join(" "))) {
+        matched = len;
+        break;
+      }
+    }
+    if (!matched) return false;
+    i += matched;
+  }
+  return true;
+}
+
 /**
  * Splits streamed text into complete sentences and the unfinished rest.
  * A sentence ends at . ! ? … or a newline followed by whitespace; "10:30" or

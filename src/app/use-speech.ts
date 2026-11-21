@@ -44,9 +44,12 @@ const ERRORS: Record<string, string> = {
 export function useSpeechInput({
   onInterim,
   onFinal,
+  onNothing,
 }: {
   onInterim: (text: string) => void;
   onFinal: (text: string) => void;
+  /** Listening ended without any words (silence, error or stopped). */
+  onNothing?: (error: string | null) => void;
 }) {
   // false on the server and during hydration, the real value in the browser.
   const supported = useSyncExternalStore(
@@ -59,10 +62,11 @@ export function useSpeechInput({
   const rec = useRef<Recognition | null>(null);
   const transcript = useRef("");
   // Keep latest callbacks without re-creating the recognizer.
-  const handlers = useRef({ onInterim, onFinal });
+  const handlers = useRef({ onInterim, onFinal, onNothing });
   useEffect(() => {
-    handlers.current = { onInterim, onFinal };
+    handlers.current = { onInterim, onFinal, onNothing };
   });
+  const lastError = useRef<string | null>(null);
 
   useEffect(() => () => rec.current?.abort(), []);
 
@@ -74,6 +78,7 @@ export function useSpeechInput({
     r.interimResults = true;
     r.continuous = false; // stop automatically after a pause
     transcript.current = "";
+    lastError.current = null;
     setError(null);
 
     r.onresult = (e) => {
@@ -83,12 +88,14 @@ export function useSpeechInput({
       handlers.current.onInterim(transcript.current);
     };
     r.onerror = (e) => {
+      lastError.current = e.error;
       if (e.error !== "aborted") setError(ERRORS[e.error] ?? "Ses tanıma başarısız oldu.");
     };
     r.onend = () => {
       rec.current = null;
       setListening(false);
       if (transcript.current) handlers.current.onFinal(transcript.current);
+      else handlers.current.onNothing?.(lastError.current);
     };
 
     rec.current = r;
@@ -99,5 +106,11 @@ export function useSpeechInput({
   /** Stops listening; whatever was heard so far is still sent. */
   const stop = useCallback(() => rec.current?.stop(), []);
 
-  return { supported, listening, error, start, stop };
+  /** Stops listening and discards what was heard (nothing is sent). */
+  const abort = useCallback(() => {
+    transcript.current = "";
+    rec.current?.abort();
+  }, []);
+
+  return { supported, listening, error, start, stop, abort };
 }

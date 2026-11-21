@@ -43,12 +43,27 @@ function turkishVoice(): SpeechSynthesisVoice | undefined {
  * Feed streamed text with `feed`; complete sentences are spoken right away
  * (also avoids Chrome cutting off long utterances), the tail on `flush`.
  */
-export function useSpeechOutput() {
+export function useSpeechOutput({ onDone }: { onDone?: () => void } = {}) {
   const supported = useSyncExternalStore(noopSubscribe, hasSynthesis, () => false);
   const mode = useSyncExternalStore(subscribeMode, readMode, () => "voice" as VoiceReplyMode);
   const [speaking, setSpeaking] = useState(false);
   const buffer = useRef("");
   const pending = useRef(0);
+  // True once the whole reply has arrived (flush called). "Done" fires only
+  // when the reply is complete AND nothing is left to say, so a pause
+  // between streamed sentences is not mistaken for the end.
+  const replyComplete = useRef(false);
+  const doneHandler = useRef(onDone);
+  useEffect(() => {
+    doneHandler.current = onDone;
+  });
+
+  const maybeDone = useCallback(() => {
+    if (replyComplete.current && pending.current === 0) {
+      replyComplete.current = false;
+      doneHandler.current?.();
+    }
+  }, []);
 
   // Voices load asynchronously in Chrome; touching the list starts the load.
   useEffect(() => {
@@ -80,12 +95,15 @@ export function useSpeechOutput() {
     setSpeaking(true);
     const done = () => {
       pending.current = Math.max(0, pending.current - 1);
-      if (pending.current === 0) setSpeaking(false);
+      if (pending.current === 0) {
+        setSpeaking(false);
+        maybeDone();
+      }
     };
     u.onend = done;
     u.onerror = done;
     window.speechSynthesis.speak(u);
-  }, []);
+  }, [maybeDone]);
 
   /** Add streamed text; speaks every sentence that is complete. */
   const feed = useCallback(
@@ -102,12 +120,16 @@ export function useSpeechOutput() {
   const flush = useCallback(() => {
     const rest = buffer.current;
     buffer.current = "";
+    replyComplete.current = true;
     if (rest.trim()) speakNow(rest);
-  }, [speakNow]);
+    // Nothing (left) to say: report done right away.
+    else maybeDone();
+  }, [speakNow, maybeDone]);
 
-  /** Stop talking now (new message, mic pressed, new chat, stop button). */
+  /** Stop talking now (new message, mic pressed, new chat, stop button). Never reports "done". */
   const cancel = useCallback(() => {
     buffer.current = "";
+    replyComplete.current = false;
     pending.current = 0;
     setSpeaking(false);
     if (hasSynthesis()) window.speechSynthesis.cancel();

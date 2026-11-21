@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { takeSentences, toSpeakable } from "./text";
+import { isStopPhrase, takeSentences, toSpeakable } from "./text";
+
+describe("isStopPhrase", () => {
+  it("recognises goodbyes said on their own", () => {
+    for (const s of ["Tamam teşekkürler.", "bitir", "Teşekkür ederim!", "TAMAM", "sağ ol görüşürüz", "Sesli sohbeti kapat"]) {
+      expect(isStopPhrase(s), s).toBe(true);
+    }
+  });
+
+  it("does not treat commands that start with 'tamam' as goodbyes", () => {
+    for (const s of ["Tamam, yarın 10'a toplantı ekle", "tamam bunu görev yap", "dur bir dakika bugün neler var", "", "teşekkürler şimdi haftamı planla"]) {
+      expect(isStopPhrase(s), s).toBe(false);
+    }
+  });
+});
 
 describe("toSpeakable", () => {
   it("drops markdown, bullets, emoji and links", () => {
