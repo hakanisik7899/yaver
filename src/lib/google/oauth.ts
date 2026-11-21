@@ -12,6 +12,32 @@ export class GoogleNotConnectedError extends Error {
 // exchange on every tool call.
 const cache = new Map<string, { token: string; expiresAt: number }>();
 
+/**
+ * Revokes Yaver's Google access (at Google too) and forgets the stored
+ * refresh token. The user reconnects by signing in again.
+ */
+export async function disconnectGoogle(userId: string): Promise<void> {
+  const db = createAdminClient();
+  const { data } = await db
+    .from("google_connections")
+    .select("refresh_token")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (data?.refresh_token) {
+    // Best effort: even if Google is unreachable we still delete our copy.
+    await fetch("https://oauth2.googleapis.com/revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token: data.refresh_token }),
+    }).catch((err) => console.error("Google revoke failed", err));
+  }
+
+  cache.delete(userId);
+  const { error } = await db.from("google_connections").delete().eq("user_id", userId);
+  if (error) throw error;
+}
+
 export async function getGoogleAccessToken(userId: string): Promise<string> {
   const hit = cache.get(userId);
   if (hit && hit.expiresAt > Date.now() + 60_000) return hit.token;

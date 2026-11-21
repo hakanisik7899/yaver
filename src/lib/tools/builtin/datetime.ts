@@ -4,6 +4,7 @@ import { defineTool } from "../registry";
 
 export const getCurrentDatetime = defineTool({
   name: "get_current_datetime",
+  label: "Tarih ve saati okuma",
   description:
     "Returns the current date, time and weekday in the user's time zone. " +
     "Call this before reasoning about 'today', 'tomorrow' or 'this week'.",

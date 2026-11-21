@@ -29,6 +29,8 @@ export interface ToolContext {
 export interface ToolDefinition<TSchema extends z.ZodObject = z.ZodObject> {
   /** snake_case, stable: it is part of the cached tool list sent to Claude. */
   name: string;
+  /** Turkish name shown to the user in the Trust Center, e.g. "Takvimi okuma". */
+  label: string;
   /** What the tool does and when to use it, written for the model. */
   description: string;
   kind: ToolKind;

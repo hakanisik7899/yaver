@@ -17,6 +17,7 @@ const MAX_RANGE_DAYS = 31;
 
 export const listCalendarEvents = defineTool({
   name: "list_calendar_events",
+  label: "Takvimi okuma",
   description:
     "Lists events on the user's Google Calendar between two dates (inclusive, " +
     "user's local time). Use for questions about meetings, schedule or plans. " +
@@ -39,6 +40,7 @@ export const listCalendarEvents = defineTool({
 
 export const findFreeSlots = defineTool({
   name: "find_free_slots",
+  label: "Boş zamanları hesaplama",
   description:
     "Finds free time blocks on one day of the user's calendar, within working " +
     "hours (default 08:00–20:00). Use to suggest when to schedule work, sport, " +
@@ -82,6 +84,7 @@ const turkishDay = (date: string) =>
 
 export const createCalendarEvent = defineTool({
   name: "create_calendar_event",
+  label: "Takvime etkinlik ekleme",
   description:
     "Proposes adding an event to the user's Google Calendar. The event is NOT " +
     "created immediately: it goes to the user's approval list and is created " +

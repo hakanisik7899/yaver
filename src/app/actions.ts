@@ -7,6 +7,8 @@ import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { createClient } from "@/lib/supabase/server";
 import { executeApprovedAction, rejectAction, registry } from "@/lib/tools";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
+import { allowedModes, defaultMode } from "@/lib/tools/policy";
+import { disconnectGoogle } from "@/lib/google/oauth";
 
 async function currentUserId(): Promise<string> {
   const supabase = await createClient();
@@ -14,6 +16,47 @@ async function currentUserId(): Promise<string> {
   const id = data?.claims?.sub;
   if (!id) throw new Error("unauthorized");
   return id;
+}
+
+export async function deleteConversation(id: string) {
+  if (!z.uuid().safeParse(id).success) return;
+  await currentUserId();
+  const supabase = await createClient();
+  // RLS limits this to the user's own conversation; messages cascade.
+  // Audit log entries stay (their conversation link is set to null).
+  await supabase.from("ai_conversations").delete().eq("id", id);
+  revalidatePath("/history");
+}
+
+const ModeChoice = z.enum(["auto", "ask", "deny"]);
+
+/** Trust Center: per-tool permission. Choosing the default removes the row. */
+export async function setToolPermission(toolName: string, mode: string) {
+  const tool = registry.get(toolName);
+  const parsed = ModeChoice.safeParse(mode);
+  if (!tool || !parsed.success || !allowedModes(tool).includes(parsed.data)) {
+    return { ok: false as const };
+  }
+  const userId = await currentUserId();
+  const supabase = await createClient();
+
+  const { error } =
+    parsed.data === defaultMode(tool)
+      ? await supabase.from("tool_permissions").delete().eq("tool_name", toolName)
+      : await supabase.from("tool_permissions").upsert({
+          user_id: userId,
+          tool_name: toolName,
+          mode: parsed.data,
+          updated_at: new Date().toISOString(),
+        });
+  revalidatePath("/trust");
+  return { ok: !error };
+}
+
+export async function disconnectGoogleAccount() {
+  const userId = await currentUserId();
+  await disconnectGoogle(userId);
+  revalidatePath("/trust");
 }
 
 export async function approveAction(actionId: string) {

@@ -16,6 +16,7 @@ validate input (zod) → check permission ([policy.ts](src/lib/tools/policy.ts))
 - `autoByDefault` is only for reversible writes to Yaver's own data (tasks). Anything touching an external service (calendar, email) stays approval-first.
 - Define tools with `defineTool()` and register them in [src/lib/tools/index.ts](src/lib/tools/index.ts). Set `kind`, and `sensitive: true` for email/payment/account changes.
 - Approved actions run via `executeApprovedAction()`; never call `tool.execute` directly.
+- Every tool needs a Turkish `label` (shown in the Trust Center at `/trust`) and an entry in [tool-labels.ts](src/lib/agent/tool-labels.ts) for chat chips. The Trust Center reads modes via `allowedModes` / `defaultMode` / `effectiveMode` in policy.ts, so what it shows always matches what `decide()` enforces.
 - Audit log is append-only; reads are logged too.
 - `npm test` covers these rules; keep it green when touching the Tool Layer.
 

@@ -63,6 +63,11 @@ export class ToolRegistry {
     return this.tools.get(name);
   }
 
+  /** All tools in registration order (for the Trust Center). */
+  list(): ToolDefinition[] {
+    return [...this.tools.values()];
+  }
+
   /**
    * Tool list for the Messages API. Sorted by name so the list is
    * byte-identical between requests and the prompt cache keeps hitting.

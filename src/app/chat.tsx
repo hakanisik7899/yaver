@@ -2,25 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import type { DisplayTurn as Turn } from "@/lib/agent/history";
+import { activityLabel } from "@/lib/agent/tool-labels";
 import type { ChatStreamEvent } from "./api/chat/route";
-
-interface Turn {
-  role: "user" | "assistant";
-  text: string;
-  tools: string[];
-  error?: string;
-}
-
-const TOOL_LABELS: Record<string, string> = {
-  get_current_datetime: "Tarih kontrol edildi",
-  list_calendar_events: "Takvim okundu",
-  find_free_slots: "Boş zamanlar hesaplandı",
-  create_calendar_event: "Onaya gönderildi",
-  list_tasks: "Görevler okundu",
-  create_task: "Görev eklendi",
-  complete_task: "Görev tamamlandı",
-  update_task: "Görev güncellendi",
-};
 
 const SUGGESTIONS = [
   "Günümü özetle",
@@ -29,17 +13,31 @@ const SUGGESTIONS = [
   "Bu haftamı planla",
 ];
 
-export function Chat() {
+export function Chat({
+  initialConversationId,
+  initialTurns = [],
+}: {
+  initialConversationId?: string;
+  initialTurns?: Turn[];
+}) {
   const router = useRouter();
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [turns, setTurns] = useState<Turn[]>(initialTurns);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const conversationId = useRef<string | undefined>(undefined);
+  const conversationId = useRef<string | undefined>(initialConversationId);
   const bottom = useRef<HTMLDivElement>(null);
 
+  // Scroll to the latest message, but not on a fresh dashboard load
+  // (that would push the morning summary off screen on phones).
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (turns.length > 0) bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [turns]);
+
+  function newChat() {
+    setTurns([]);
+    conversationId.current = undefined;
+    if (initialConversationId) router.replace("/");
+  }
 
   function updateLast(fn: (t: Turn) => Turn) {
     setTurns((prev) => [...prev.slice(0, -1), fn(prev[prev.length - 1])]);
@@ -78,7 +76,7 @@ export function Chat() {
           if (e.type === "start") conversationId.current = e.conversationId;
           else if (e.type === "text") updateLast((t) => ({ ...t, text: t.text + e.delta }));
           else if (e.type === "tool") {
-            const label = TOOL_LABELS[e.name] ?? e.name;
+            const label = activityLabel(e.name);
             updateLast((t) => (t.tools.includes(label) ? t : { ...t, tools: [...t.tools, label] }));
           } else if (e.type === "error") updateLast((t) => ({ ...t, error: e.message }));
         }
@@ -94,6 +92,20 @@ export function Chat() {
 
   return (
     <div className="flex min-h-[24rem] flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] lg:min-h-[28rem]">
+      {turns.length > 0 && (
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2 sm:px-5">
+          <span className="text-xs text-[var(--muted)]">
+            {initialConversationId ? "Kayıtlı sohbet" : "Sohbet"}
+          </span>
+          <button
+            onClick={newChat}
+            disabled={busy}
+            className="text-xs font-medium text-[var(--accent)] disabled:opacity-40"
+          >
+            + Yeni sohbet
+          </button>
+        </div>
+      )}
       <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
         {turns.length === 0 && (
           <div className="space-y-4">

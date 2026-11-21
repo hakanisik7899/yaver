@@ -31,6 +31,7 @@ async function ownTask(userId: string, taskId: string): Promise<Task> {
 
 export const listTasks = defineTool({
   name: "list_tasks",
+  label: "Görevleri okuma",
   description:
     "Lists the user's tasks. Use for questions about to-dos, deadlines or what to work on, " +
     "and together with the calendar when planning a day or week. Also use it to find a " +
@@ -58,6 +59,7 @@ export const listTasks = defineTool({
 
 export const createTask = defineTool({
   name: "create_task",
+  label: "Görev ekleme",
   description:
     "Adds a task to the user's list. Runs immediately (no approval needed) and can be undone. " +
     "Use when the user asks to remember, add or plan a to-do. Set due_date only if the user " +
@@ -91,6 +93,7 @@ export const createTask = defineTool({
 
 export const completeTask = defineTool({
   name: "complete_task",
+  label: "Görev tamamlama",
   description:
     "Marks one of the user's tasks as done. Runs immediately and can be undone. " +
     "Get the task id from list_tasks first; never guess ids.",
@@ -116,6 +119,7 @@ export const completeTask = defineTool({
 
 export const updateTask = defineTool({
   name: "update_task",
+  label: "Görev güncelleme / erteleme",
   description:
     "Changes a task's title, due date, priority or notes, e.g. to postpone it. Runs " +
     "immediately and can be undone. Get the id from list_tasks first. Set clear_due_date " +

@@ -46,6 +46,7 @@ const sendExec = vi.fn(async () => ({ sent: true }));
 const registry = new ToolRegistry().register(
   defineTool({
     name: "list_events",
+    label: "list_events",
     description: "List events",
     kind: "read",
     input: z.strictObject({}),
@@ -54,6 +55,7 @@ const registry = new ToolRegistry().register(
   }),
   defineTool({
     name: "create_event",
+    label: "create_event",
     description: "Create event",
     kind: "write",
     reversible: true,
@@ -63,6 +65,7 @@ const registry = new ToolRegistry().register(
   }),
   defineTool({
     name: "send_email",
+    label: "send_email",
     description: "Send email",
     kind: "write",
     sensitive: true,
@@ -206,6 +209,7 @@ describe("registry", () => {
     const reg = new ToolRegistry().register(
       defineTool({
         name: "slots",
+        label: "slots",
         description: "d",
         kind: "read",
         input: z.strictObject({
