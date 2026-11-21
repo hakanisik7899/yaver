@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { createClient } from "@/lib/supabase/server";
 import { executeApprovedAction, rejectAction, registry } from "@/lib/tools";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
@@ -20,6 +21,12 @@ export async function approveAction(actionId: string) {
   return outcome.status === "ok"
     ? { ok: true as const }
     : { ok: false as const, message: "message" in outcome ? outcome.message : "İşlem yapılamadı." };
+}
+
+export async function refreshBriefing() {
+  const userId = await currentUserId();
+  await getOrCreateBriefing(userId, { force: true });
+  revalidatePath("/");
 }
 
 export async function declineAction(actionId: string) {

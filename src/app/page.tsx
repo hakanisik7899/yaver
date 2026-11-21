@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { BriefingCard, BriefingSkeleton } from "./briefing-card";
 import { Chat } from "./chat";
 import { PendingActions } from "./pending-actions";
 
@@ -25,6 +26,10 @@ export default function HomePage() {
           <Greeting />
         </Suspense>
       </h1>
+
+      <Suspense fallback={<BriefingSkeleton />}>
+        <BriefingCard />
+      </Suspense>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <Chat />
