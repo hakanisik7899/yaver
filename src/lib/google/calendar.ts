@@ -3,6 +3,8 @@ import { USER_TZ } from "@/lib/time";
 import { getGoogleAccessToken } from "./oauth";
 
 export interface CalendarEvent {
+  /** Google event id (stable; used to avoid duplicate reminders). */
+  id: string;
   title: string;
   /** RFC 3339 for timed events, YYYY-MM-DD for all-day events. */
   start: string;
@@ -16,6 +18,7 @@ export interface CalendarEvent {
 }
 
 interface GoogleEvent {
+  id?: string;
   status?: string;
   summary?: string;
   location?: string;
@@ -103,6 +106,7 @@ export async function listEvents(
     .map((e) => {
       const allDay = !e.start?.dateTime;
       return {
+        id: e.id ?? "",
         title: e.summary?.trim() || "(Başlıksız)",
         start: e.start?.dateTime ?? e.start?.date ?? "",
         end: e.end?.dateTime ?? e.end?.date ?? "",

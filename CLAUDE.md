@@ -30,6 +30,7 @@ validate input (zod) → check permission ([policy.ts](src/lib/tools/policy.ts))
 - Supabase: auth (Google provider) + Postgres. Migrations in `supabase/migrations/`.
 - Google refresh tokens live in `google_connections` (RLS on, no policies). Access them only via `createAdminClient()` on the server.
 - Claude API (`@anthropic-ai/sdk`) for the agent: self-hosted manual loop on the Messages API in [src/lib/agent/run.ts](src/lib/agent/run.ts) (`claude-opus-5-5`, effort `medium`, server-side `fallbacks: "default"`). Chat history in `ai_messages` is append-only and stores raw content blocks (thinking/fallback included); never edit or filter stored turns.
+- Notifications: web push via `public/sw.js` (push only, no fetch handler/caching) and `web-push` (named imports only). Checks in [src/lib/notifications/check.ts](src/lib/notifications/check.ts) run every 5 min from Supabase pg_cron → `/api/cron/notify` (migration 0006; secret in Vault). They read data directly (not via Tool Layer, to keep the audit log clean) but must respect Trust Center read denials; every send is deduped in `notification_log`.
 - Time: Türkiye-only for now, fixed UTC+3 helpers in [src/lib/time.ts](src/lib/time.ts).
 - Deploy: Vercel.
 

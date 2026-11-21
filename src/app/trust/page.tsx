@@ -7,6 +7,8 @@ import { allowedModes, defaultMode, effectiveMode } from "@/lib/tools/policy";
 import type { PermissionMode } from "@/lib/tools/types";
 import { AppHeader } from "../app-header";
 import { DisconnectGoogleButton, PermissionControl } from "./controls";
+import { NotificationSettings } from "./notification-settings";
+import { normalizePrefs } from "@/lib/notifications/rules";
 
 export const metadata = { title: "Güven Merkezi · Yaver" };
 
@@ -66,6 +68,18 @@ async function Connections() {
       {data && <DisconnectGoogleButton />}
     </div>
   );
+}
+
+async function Notifications() {
+  const { supabase } = await currentUserId();
+  const [{ data: prefs }, { count }] = await Promise.all([
+    supabase
+      .from("notification_prefs")
+      .select("briefing, meetings, overdue_tasks, approvals, quiet_start, quiet_end")
+      .maybeSingle(),
+    supabase.from("push_subscriptions").select("id", { count: "exact", head: true }),
+  ]);
+  return <NotificationSettings initialPrefs={normalizePrefs(prefs)} deviceCount={count ?? 0} />;
 }
 
 async function Permissions() {
@@ -168,6 +182,13 @@ export default function TrustPage({ searchParams }: PageProps<"/trust">) {
         <h2 className="font-medium">Bağlantılar</h2>
         <Suspense fallback={<Loading />}>
           <Connections />
+        </Suspense>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+        <h2 className="font-medium">Bildirimler</h2>
+        <Suspense fallback={<Loading />}>
+          <Notifications />
         </Suspense>
       </section>
 

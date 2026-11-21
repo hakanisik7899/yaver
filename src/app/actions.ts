@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { DATE_REGEX } from "@/lib/time";
 import { getOrCreateBriefing } from "@/lib/briefing/generate";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { notifyUser } from "@/lib/notifications/send";
 import { executeApprovedAction, rejectAction, registry } from "@/lib/tools";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
 import { allowedModes, defaultMode } from "@/lib/tools/policy";
@@ -57,6 +58,77 @@ export async function disconnectGoogleAccount() {
   const userId = await currentUserId();
   await disconnectGoogle(userId);
   revalidatePath("/trust");
+}
+
+const PushSub = z.object({
+  endpoint: z.url(),
+  keys: z.object({ p256dh: z.string().min(1), auth: z.string().min(1) }),
+});
+
+/** Registers this device for push. The endpoint is unique; re-subscribing moves it to this user. */
+export async function savePushSubscription(sub: unknown, userAgent: string) {
+  const parsed = PushSub.safeParse(sub);
+  if (!parsed.success) return { ok: false as const };
+  const userId = await currentUserId();
+  const { error } = await createAdminClient()
+    .from("push_subscriptions")
+    .upsert(
+      {
+        user_id: userId,
+        endpoint: parsed.data.endpoint,
+        p256dh: parsed.data.keys.p256dh,
+        auth: parsed.data.keys.auth,
+        user_agent: userAgent.slice(0, 300),
+      },
+      { onConflict: "endpoint" },
+    );
+  revalidatePath("/trust");
+  return { ok: !error };
+}
+
+export async function removePushSubscription(endpoint: string) {
+  await currentUserId();
+  const supabase = await createClient();
+  // RLS: only the user's own device can be removed.
+  await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+  revalidatePath("/trust");
+}
+
+export async function sendTestNotification() {
+  const userId = await currentUserId();
+  const result = await notifyUser(
+    userId,
+    {
+      kind: "test",
+      refKey: crypto.randomUUID(),
+      title: "Yaver bildirimleri açık",
+      body: "Toplantılar, sabah özeti ve gecikmiş görevler için seni buradan uyaracağım.",
+    },
+    { force: true },
+  );
+  return { ok: result === "sent", result };
+}
+
+const TIME = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const Prefs = z.object({
+  briefing: z.boolean(),
+  meetings: z.boolean(),
+  overdue_tasks: z.boolean(),
+  approvals: z.boolean(),
+  quiet_start: TIME,
+  quiet_end: TIME,
+});
+
+export async function saveNotificationPrefs(input: unknown) {
+  const parsed = Prefs.safeParse(input);
+  if (!parsed.success) return { ok: false as const };
+  const userId = await currentUserId();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("notification_prefs")
+    .upsert({ user_id: userId, ...parsed.data, updated_at: new Date().toISOString() });
+  revalidatePath("/trust");
+  return { ok: !error };
 }
 
 export async function approveAction(actionId: string) {
