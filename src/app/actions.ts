@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { DATE_REGEX } from "@/lib/time";
 import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { createClient } from "@/lib/supabase/server";
 import { executeApprovedAction, rejectAction, registry } from "@/lib/tools";
@@ -27,6 +29,40 @@ export async function refreshBriefing() {
   const userId = await currentUserId();
   await getOrCreateBriefing(userId, { force: true });
   revalidatePath("/");
+}
+
+const NewTask = z.object({
+  title: z.string().trim().min(1).max(200),
+  due_date: z.union([z.string().regex(DATE_REGEX), z.literal("")]).optional(),
+});
+
+/** Direct user action from the tasks panel (not the agent, so no audit entry). */
+export async function addTask(input: { title: string; due_date?: string }) {
+  const parsed = NewTask.safeParse(input);
+  if (!parsed.success) return { ok: false as const, message: "Görev başlığı gerekli." };
+  const userId = await currentUserId();
+  const supabase = await createClient();
+  const { error } = await supabase.from("tasks").insert({
+    user_id: userId,
+    title: parsed.data.title,
+    due_date: parsed.data.due_date || null,
+  });
+  if (error) return { ok: false as const, message: "Görev eklenemedi." };
+  revalidatePath("/");
+  return { ok: true as const };
+}
+
+export async function setTaskDone(taskId: string, done: boolean) {
+  if (!z.uuid().safeParse(taskId).success) return { ok: false as const };
+  await currentUserId();
+  const supabase = await createClient();
+  // RLS limits the update to the signed-in user's own task.
+  const { error } = await supabase
+    .from("tasks")
+    .update(done ? { status: "done", completed_at: new Date().toISOString() } : { status: "open", completed_at: null })
+    .eq("id", taskId);
+  revalidatePath("/");
+  return { ok: !error };
 }
 
 export async function declineAction(actionId: string) {

@@ -12,7 +12,8 @@ AI personal assistant layer for busy professionals in Turkey. The user states a 
 ## Tool Layer (core rule)
 The model never touches the database or external services directly. Every tool call goes through `invokeTool()` in [src/lib/tools/executor.ts](src/lib/tools/executor.ts):
 validate input (zod) → check permission ([policy.ts](src/lib/tools/policy.ts)) → run now or queue in `pending_actions` → write `audit_logs`.
-- Permission levels: L1 read, L2 draft, L3 write after approval, L4 write automatically (user set `auto` in `tool_permissions`; never for `sensitive` tools).
+- Permission levels: L1 read, L2 draft, L3 write after approval, L4 write automatically (user set `auto` in `tool_permissions`, or `autoByDefault` with no user setting; never for `sensitive` tools).
+- `autoByDefault` is only for reversible writes to Yaver's own data (tasks). Anything touching an external service (calendar, email) stays approval-first.
 - Define tools with `defineTool()` and register them in [src/lib/tools/index.ts](src/lib/tools/index.ts). Set `kind`, and `sensitive: true` for email/payment/account changes.
 - Approved actions run via `executeApprovedAction()`; never call `tool.execute` directly.
 - Audit log is append-only; reads are logged too.

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BriefingCard, BriefingSkeleton } from "./briefing-card";
 import { Chat } from "./chat";
 import { PendingActions } from "./pending-actions";
+import { TasksPanel } from "./tasks-panel";
 
 async function Greeting() {
   const supabase = await createClient();
@@ -33,11 +34,19 @@ export default function HomePage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <Chat />
-        <aside className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-medium">Onay bekleyenler</h2>
-          <Suspense fallback={<p className="text-sm text-[var(--muted)]">Yükleniyor…</p>}>
-            <PendingActions />
-          </Suspense>
+        <aside className="space-y-6">
+          <section className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="font-medium">Görevler</h2>
+            <Suspense fallback={<p className="text-sm text-[var(--muted)]">Yükleniyor…</p>}>
+              <TasksPanel />
+            </Suspense>
+          </section>
+          <section className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="font-medium">Onay bekleyenler</h2>
+            <Suspense fallback={<p className="text-sm text-[var(--muted)]">Yükleniyor…</p>}>
+              <PendingActions />
+            </Suspense>
+          </section>
         </aside>
       </div>
     </main>

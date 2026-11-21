@@ -39,7 +39,8 @@ export async function BriefingCard() {
     );
   }
 
-  const { ai, freeSlots, pendingCount } = result.briefing;
+  const { ai, freeSlots, pendingCount, tasks = [] } = result.briefing;
+  const overdueCount = tasks.filter((t) => t.overdue).length;
   const events = markEnded(result.briefing.events);
 
   return (
@@ -70,6 +71,12 @@ export async function BriefingCard() {
                 );
               })}
             </ul>
+          )}
+          {tasks.length > 0 && (
+            <p className="pt-1 text-xs text-[var(--muted)]">
+              Bugün {tasks.length} görev
+              {overdueCount > 0 && <span className="text-red-500"> · {overdueCount} gecikmiş</span>}
+            </p>
           )}
           {freeSlots.length > 0 && (
             <p className="pt-1 text-xs text-[var(--muted)]">

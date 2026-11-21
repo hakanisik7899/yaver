@@ -16,13 +16,17 @@ const TOOL_LABELS: Record<string, string> = {
   list_calendar_events: "Takvim okundu",
   find_free_slots: "Boş zamanlar hesaplandı",
   create_calendar_event: "Onaya gönderildi",
+  list_tasks: "Görevler okundu",
+  create_task: "Görev eklendi",
+  complete_task: "Görev tamamlandı",
+  update_task: "Görev güncellendi",
 };
 
 const SUGGESTIONS = [
   "Günümü özetle",
   "Yarınki toplantılarım neler?",
-  "Bu hafta spor için boş zamanım var mı?",
-  "Yarın öğleden sonra 1 saatlik odak zamanı ekle",
+  "Cumaya kadar sunumu bitirmem gerek, hatırlat",
+  "Bu haftamı planla",
 ];
 
 export function Chat() {

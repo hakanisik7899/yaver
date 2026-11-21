@@ -37,6 +37,12 @@ export interface ToolDefinition<TSchema extends z.ZodObject = z.ZodObject> {
    * run at L4, whatever the user's setting.
    */
   sensitive?: boolean;
+  /**
+   * Writes that only touch Yaver's own data (e.g. tasks) and are reversible
+   * may run at L4 without asking, unless the user set "ask" or "deny".
+   * Never set this on tools that change external services.
+   */
+  autoByDefault?: boolean;
   /** Whether the effect can be undone; recorded in the audit log. */
   reversible?: boolean;
   input: TSchema;

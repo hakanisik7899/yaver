@@ -33,5 +33,11 @@ export function formatTime(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** Today's date in the user's zone, YYYY-MM-DD. */
+export function todayLocal(): string {
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: USER_TZ }).format(new Date());
+}
+
 export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 export const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;

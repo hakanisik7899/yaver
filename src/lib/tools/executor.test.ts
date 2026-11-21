@@ -84,6 +84,15 @@ describe("policy", () => {
     expect(decide({ kind: "write" }, "auto")).toEqual({ run: "now", level: 4 });
     expect(decide({ kind: "write", sensitive: true }, "auto").run).toBe("ask");
   });
+  it("runs internal auto-by-default writes at L4 unless the user asks to approve", () => {
+    const internal = { kind: "write" as const, autoByDefault: true };
+    expect(decide(internal, undefined)).toEqual({ run: "now", level: 4 });
+    expect(decide(internal, "ask").run).toBe("ask");
+    expect(decide(internal, "deny").run).toBe("deny");
+    // A sensitive tool can never opt into auto, by default or by setting.
+    expect(decide({ ...internal, sensitive: true }, undefined).run).toBe("ask");
+  });
+
   it("denies when the user disabled the tool, even for reads", () => {
     expect(decide({ kind: "read" }, "deny").run).toBe("deny");
   });
