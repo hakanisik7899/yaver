@@ -19,7 +19,7 @@ validate input (zod) → check permission ([policy.ts](src/lib/tools/policy.ts))
 - `npm test` covers these rules; keep it green when touching the Tool Layer.
 
 ## Roadmap
-- **v0.1 (current):** Google sign-in, Calendar read (`calendar.readonly`), chat Q&A over calendar, daily morning summary.
+- **v0.1 (current):** Google sign-in, Calendar read + approved event creation (`calendar.events`, no invites), chat over calendar, approvals panel. Still to do: daily morning summary.
 - **v0.2:** Bills from Gmail e-invoices (Gmail is a *restricted* scope: fine for <100 beta testers, needs Google verification + CASA assessment before public launch), web research (events, venues, weather), weekend/plan generation.
 - Later: Microsoft 365, Pro billing, Telegram/WhatsApp channel.
 

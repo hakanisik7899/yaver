@@ -44,6 +44,12 @@ export interface ActionStore {
     action: Omit<PendingActionRecord, "id" | "status">,
   ): Promise<string>;
   getPendingAction(id: string): Promise<PendingActionRecord | null>;
+  /**
+   * Atomically moves an action from "pending" to "approved". Returns false
+   * if it was not pending (already approved, rejected or executed), so two
+   * concurrent approvals can never both execute it.
+   */
+  claimPendingAction(id: string): Promise<boolean>;
   setPendingActionStatus(
     id: string,
     status: PendingActionRecord["status"],

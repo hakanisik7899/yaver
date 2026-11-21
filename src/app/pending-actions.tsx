@@ -1,31 +1,63 @@
 import { createClient } from "@/lib/supabase/server";
 import { PendingActionButtons } from "./pending-action-buttons";
 
+const STATUS_LABEL: Record<string, { text: string; className: string }> = {
+  executed: { text: "Yapıldı", className: "text-[var(--accent)]" },
+  rejected: { text: "Reddedildi", className: "text-[var(--muted)]" },
+  failed: { text: "Başarısız", className: "text-red-500" },
+  approved: { text: "İşleniyor", className: "text-[var(--muted)]" },
+};
+
 export async function PendingActions() {
   const supabase = await createClient();
-  const { data: actions } = await supabase
-    .from("pending_actions")
-    .select("id, summary, created_at")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  if (!actions?.length) {
-    return (
-      <p className="text-sm text-[var(--muted)]">
-        Şu an onay bekleyen bir işlem yok. Yaver bir şeyi değiştirmek istediğinde burada görünecek.
-      </p>
-    );
-  }
+  const [{ data: pending }, { data: recent }] = await Promise.all([
+    supabase
+      .from("pending_actions")
+      .select("id, summary")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("pending_actions")
+      .select("id, summary, status")
+      .neq("status", "pending")
+      .order("decided_at", { ascending: false, nullsFirst: false })
+      .limit(5),
+  ]);
 
   return (
-    <ul className="space-y-3">
-      {actions.map((a) => (
-        <li key={a.id} className="rounded-lg border border-[var(--border)] p-3">
-          <p className="text-sm">{a.summary}</p>
-          <PendingActionButtons actionId={a.id} />
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-5">
+      {pending?.length ? (
+        <ul className="space-y-3">
+          {pending.map((a) => (
+            <li key={a.id} className="rounded-lg border border-[var(--border)] p-3">
+              <p className="text-sm">{a.summary}</p>
+              <PendingActionButtons actionId={a.id} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-[var(--muted)]">
+          Şu an onay bekleyen bir işlem yok. Yaver bir şeyi değiştirmek istediğinde burada görünecek.
+        </p>
+      )}
+
+      {recent?.length ? (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Son işlemler</h3>
+          <ul className="space-y-1.5">
+            {recent.map((a) => {
+              const label = STATUS_LABEL[a.status] ?? { text: a.status, className: "" };
+              return (
+                <li key={a.id} className="flex items-start justify-between gap-3 text-sm">
+                  <span className="text-[var(--muted)]">{a.summary}</span>
+                  <span className={`shrink-0 text-xs ${label.className}`}>{label.text}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+    </div>
   );
 }

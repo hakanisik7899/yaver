@@ -27,6 +27,54 @@ interface GoogleEvent {
   end?: { dateTime?: string; date?: string };
 }
 
+export class CalendarWriteNotAllowedError extends Error {
+  constructor() {
+    super(
+      "Takvime yazma izni yok. Yaver'e bu izni vermek için çıkış yapıp tekrar Google ile giriş yap.",
+    );
+  }
+}
+
+export interface NewEvent {
+  title: string;
+  /** RFC 3339 with offset. */
+  start: string;
+  end: string;
+  description?: string;
+  location?: string;
+}
+
+/**
+ * Creates an event on the primary calendar. Never invites anyone: sending
+ * invitations would email other people and needs its own sensitive tool.
+ */
+export async function createEvent(
+  userId: string,
+  event: NewEvent,
+): Promise<{ id: string; link: string }> {
+  const token = await getGoogleAccessToken(userId);
+  const res = await fetch(
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=none",
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        summary: event.title,
+        description: event.description,
+        location: event.location,
+        start: { dateTime: event.start, timeZone: USER_TZ },
+        end: { dateTime: event.end, timeZone: USER_TZ },
+      }),
+    },
+  );
+  // 403 here means the token was granted before calendar.events was added.
+  if (res.status === 403) throw new CalendarWriteNotAllowedError();
+  if (!res.ok) throw new Error(`Etkinlik oluşturulamadı (${res.status})`);
+
+  const json = (await res.json()) as { id: string; htmlLink: string };
+  return { id: json.id, link: json.htmlLink };
+}
+
 /** Events on the user's primary calendar in [timeMin, timeMax). */
 export async function listEvents(
   userId: string,

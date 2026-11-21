@@ -60,6 +60,17 @@ export function createSupabaseActionStore(): ActionStore {
       };
     },
 
+    async claimPendingAction(id) {
+      const { data, error } = await db
+        .from("pending_actions")
+        .update({ status: "approved", decided_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("status", "pending")
+        .select("id");
+      if (error) throw error;
+      return (data?.length ?? 0) > 0;
+    },
+
     async setPendingActionStatus(id, status) {
       const decided = status === "approved" || status === "rejected";
       const { error } = await db

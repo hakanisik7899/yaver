@@ -95,7 +95,7 @@ export async function executeApprovedAction(
   if (!action || action.userId !== userId) {
     return { status: "error", message: "İşlem bulunamadı." };
   }
-  if (action.status !== "pending" && action.status !== "approved") {
+  if (action.status !== "pending") {
     return { status: "error", message: "Bu işlem zaten sonuçlandırılmış." };
   }
 
@@ -125,7 +125,11 @@ export async function executeApprovedAction(
     return { status: "error", message: "Kayıtlı işlem verisi geçersiz." };
   }
 
-  await store.setPendingActionStatus(actionId, "approved");
+  // The status check above is only a fast path; this claim is what
+  // guarantees a double-clicked approval runs the action once.
+  if (!(await store.claimPendingAction(actionId))) {
+    return { status: "error", message: "Bu işlem zaten sonuçlandırılmış." };
+  }
   await store.audit({ ...base, event: "approved", level: 3, approvedByUser: true });
 
   try {

@@ -15,13 +15,14 @@ const TOOL_LABELS: Record<string, string> = {
   get_current_datetime: "Tarih kontrol edildi",
   list_calendar_events: "Takvim okundu",
   find_free_slots: "Boş zamanlar hesaplandı",
+  create_calendar_event: "Onaya gönderildi",
 };
 
 const SUGGESTIONS = [
   "Günümü özetle",
   "Yarınki toplantılarım neler?",
   "Bu hafta spor için boş zamanım var mı?",
-  "Hafta sonu programım nasıl?",
+  "Yarın öğleden sonra 1 saatlik odak zamanı ekle",
 ];
 
 export function Chat() {

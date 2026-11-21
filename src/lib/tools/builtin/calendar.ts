@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { listEvents } from "@/lib/google/calendar";
+import { createEvent, listEvents } from "@/lib/google/calendar";
 import { computeFreeSlots } from "@/lib/google/free-slots";
 import {
   DATE_REGEX,
@@ -69,5 +69,47 @@ export const findFreeSlots = defineTool({
       minutes: Math.round((s.end - s.start) / 60_000),
     }));
     return { date: i.date, window: `${from}–${to}`, slots };
+  },
+});
+
+const turkishDay = (date: string) =>
+  new Intl.DateTimeFormat("tr-TR", {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "long",
+    weekday: "long",
+  }).format(new Date(`${date}T00:00:00Z`));
+
+export const createCalendarEvent = defineTool({
+  name: "create_calendar_event",
+  description:
+    "Proposes adding an event to the user's Google Calendar. The event is NOT " +
+    "created immediately: it goes to the user's approval list and is created " +
+    "only after they approve. No one is invited. Before proposing, check the " +
+    "day with list_calendar_events and mention any overlap to the user.",
+  kind: "write",
+  reversible: true,
+  input: z.strictObject({
+    title: z.string().trim().min(1).max(200).describe("Event title, in the user's language"),
+    date: z.string().regex(DATE_REGEX).describe("Day, YYYY-MM-DD"),
+    start_time: z.string().regex(TIME_REGEX).describe("Start, HH:MM local time"),
+    end_time: z.string().regex(TIME_REGEX).describe("End, HH:MM local time, same day"),
+    location: z.string().max(300).optional().describe("Place, if the user gave one"),
+    description: z.string().max(2000).optional().describe("Notes for the event"),
+  }).refine((i) => i.end_time > i.start_time, {
+    message: "end_time must be after start_time on the same day",
+    path: ["end_time"],
+  }),
+  summarize: (i) =>
+    `Takvime ekle: ${i.title} — ${turkishDay(i.date)}, ${i.start_time}–${i.end_time}`,
+  async execute(ctx, i) {
+    const created = await createEvent(ctx.userId, {
+      title: i.title,
+      start: `${i.date}T${i.start_time}:00${USER_UTC_OFFSET}`,
+      end: `${i.date}T${i.end_time}:00${USER_UTC_OFFSET}`,
+      location: i.location,
+      description: i.description,
+    });
+    return { created: true, eventId: created.id, link: created.link };
   },
 });

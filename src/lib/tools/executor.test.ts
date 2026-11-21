@@ -20,7 +20,14 @@ function memoryStore(modes: Record<string, PermissionMode> = {}) {
       return id;
     },
     async getPendingAction(id) {
-      return actions.get(id) ?? null;
+      const a = actions.get(id);
+      return a ? { ...a } : null; // copy, like a DB read
+    },
+    async claimPendingAction(id) {
+      const a = actions.get(id);
+      if (!a || a.status !== "pending") return false;
+      a.status = "approved";
+      return true;
     },
     async setPendingActionStatus(id, status) {
       actions.get(id)!.status = status;
@@ -138,6 +145,20 @@ describe("approval flow", () => {
 
     const again = await executeApprovedAction(registry, store, "u1", id);
     expect(again.status).toBe("error");
+    expect(writeExec).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs the action once when approved twice at the same time", async () => {
+    writeExec.mockClear();
+    const { store } = memoryStore();
+    const queued = await invokeTool(registry, store, ctx, "create_event", { title: "Spor" });
+    const id = (queued as { actionId: string }).actionId;
+
+    const results = await Promise.all([
+      executeApprovedAction(registry, store, "u1", id),
+      executeApprovedAction(registry, store, "u1", id),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual(["error", "ok"]);
     expect(writeExec).toHaveBeenCalledTimes(1);
   });
 

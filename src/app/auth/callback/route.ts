@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { GOOGLE_SCOPES_LABEL } from "@/lib/google/scopes";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
       .upsert({
         user_id: data.session.user.id,
         refresh_token: refreshToken,
-        scopes: "calendar.readonly",
+        scopes: GOOGLE_SCOPES_LABEL,
         updated_at: new Date().toISOString(),
       });
     if (saveError) {
