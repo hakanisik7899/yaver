@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DisplayTurn as Turn } from "@/lib/agent/history";
 import { activityLabel } from "@/lib/agent/tool-labels";
 import type { ChatStreamEvent } from "./api/chat/route";
+import { useSpeechInput } from "./use-speech";
 
 const SUGGESTIONS = [
   "Günümü özetle",
@@ -38,6 +39,12 @@ export function Chat({
     conversationId.current = undefined;
     if (initialConversationId) router.replace("/");
   }
+
+  // Voice: show words live in the input, send when the user stops talking.
+  const speech = useSpeechInput({
+    onInterim: (text) => setInput(text),
+    onFinal: (text) => send(text),
+  });
 
   function updateLast(fn: (t: Turn) => Turn) {
     setTurns((prev) => [...prev.slice(0, -1), fn(prev[prev.length - 1])]);
@@ -161,24 +168,48 @@ export function Chat({
           e.preventDefault();
           send(input);
         }}
-        className="flex gap-2 border-t border-[var(--border)] p-3"
+        className="border-t border-[var(--border)] p-3"
       >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Yaver'e sor… (ör. Bugün ne yapmalıyım?)"
-          maxLength={4000}
-          // 16px on phones: iOS zooms into inputs with smaller text.
-          className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2.5 text-base outline-none placeholder:text-[var(--muted)] sm:text-sm"
-          enterKeyHint="send"
-        />
-        <button
-          type="submit"
-          disabled={busy || !input.trim()}
-          className="shrink-0 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-fg)] disabled:opacity-40"
-        >
-          Gönder
-        </button>
+        <div className="flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            readOnly={speech.listening}
+            placeholder={speech.listening ? "Dinliyorum…" : "Yaver'e sor… (ör. Bugün ne yapmalıyım?)"}
+            maxLength={4000}
+            // 16px on phones: iOS zooms into inputs with smaller text.
+            className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2.5 text-base outline-none placeholder:text-[var(--muted)] sm:text-sm"
+            enterKeyHint="send"
+          />
+          {speech.supported && (
+            <button
+              type="button"
+              onClick={speech.listening ? speech.stop : speech.start}
+              disabled={busy}
+              aria-label={speech.listening ? "Dinlemeyi bitir" : "Sesle komut ver"}
+              aria-pressed={speech.listening}
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-40 ${
+                speech.listening
+                  ? "animate-pulse border-red-500 bg-red-500 text-white"
+                  : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--fg)]"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="9" y="2" width="6" height="12" rx="3" />
+                <path d="M5 10a7 7 0 0 0 14 0" />
+                <path d="M12 17v4" />
+              </svg>
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={busy || speech.listening || !input.trim()}
+            className="shrink-0 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-fg)] disabled:opacity-40"
+          >
+            Gönder
+          </button>
+        </div>
+        {speech.error && <p className="px-1 pt-2 text-xs text-red-500">{speech.error}</p>}
       </form>
     </div>
   );
