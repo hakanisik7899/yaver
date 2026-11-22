@@ -6,7 +6,7 @@ import { registry } from "@/lib/tools";
 import { SERVER_TOOLS } from "@/lib/tools/server-tools";
 import { allowedModes, defaultMode, effectiveMode } from "@/lib/tools/policy";
 import type { PermissionMode } from "@/lib/tools/types";
-import { AppHeader } from "../app-header";
+import { AppShell } from "../app-shell";
 import { DisconnectGoogleButton, PermissionControl } from "./controls";
 import { NotificationSettings } from "./notification-settings";
 import { normalizePrefs } from "@/lib/notifications/rules";
@@ -168,32 +168,32 @@ const Loading = () => <p className="text-sm text-[var(--muted)]">Yükleniyor…<
 
 export default function TrustPage({ searchParams }: PageProps<"/trust">) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
-      <AppHeader active="trust" />
+    <AppShell active="trust">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
 
       <div className="space-y-1">
-        <h1 className="text-2xl font-medium">Güven Merkezi</h1>
+        <h1 className="font-display text-3xl font-semibold">Güven Merkezi</h1>
         <p className="text-sm text-[var(--muted)]">
           Yaver&apos;in neye erişebildiğini, ne yaptığını ve hangi işler için onayını beklediğini buradan
           yönetirsin.
         </p>
       </div>
 
-      <section className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <section className="space-y-3 glass rise rounded-3xl p-5">
         <h2 className="font-medium">Bağlantılar</h2>
         <Suspense fallback={<Loading />}>
           <Connections />
         </Suspense>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <section className="space-y-3 glass rise rounded-3xl p-5">
         <h2 className="font-medium">Bildirimler</h2>
         <Suspense fallback={<Loading />}>
           <Notifications />
         </Suspense>
       </section>
 
-      <section className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <section className="space-y-2 glass rise rounded-3xl p-5">
         <h2 className="font-medium">Araç izinleri</h2>
         <p className="text-xs text-[var(--muted)]">
           Otomatik: Yaver hemen yapar ve kaydeder. Onay iste: önce Onay bekleyenler listesine düşer.
@@ -204,7 +204,7 @@ export default function TrustPage({ searchParams }: PageProps<"/trust">) {
         </Suspense>
       </section>
 
-      <section className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <section className="space-y-2 glass rise rounded-3xl p-5">
         <h2 className="font-medium">İşlem kaydı</h2>
         <p className="text-xs text-[var(--muted)]">
           Yaver&apos;in yaptığı ve önerdiği her işlem burada. Kayıtlar değiştirilemez ve silinemez.
@@ -213,6 +213,7 @@ export default function TrustPage({ searchParams }: PageProps<"/trust">) {
           <AuditLog searchParams={searchParams} />
         </Suspense>
       </section>
-    </main>
+    </div>
+    </AppShell>
   );
 }

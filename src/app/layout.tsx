@@ -1,15 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Onest } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Display: characterful grotesque for greetings and titles.
+const display = Bricolage_Grotesque({
+  variable: "--font-display",
   subsets: ["latin", "latin-ext"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+// Body: clean, highly legible, full Turkish support.
+const body = Onest({
+  variable: "--font-body",
+  subsets: ["latin", "latin-ext"],
 });
 
 export const metadata: Metadata = {
@@ -25,18 +27,13 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Lets the layout extend under the notch; safe-area padding is in globals.css.
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f7f8" },
-    { media: "(prefers-color-scheme: dark)", color: "#111316" },
-  ],
+  themeColor: "#050816",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="tr"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="tr" className={`${display.variable} ${body.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

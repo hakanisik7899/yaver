@@ -1,45 +1,148 @@
 @import "tailwindcss";
 
-/* Yaver design tokens: graphite + off-white + turquoise accent. */
+/*
+ * Yaver: "night blue, luminous assistant".
+ * Deep navy canvas, glass cards with a faint blue rim, electric-blue accent
+ * with a cyan highlight. Dark only, like the reference direction.
+ */
 :root {
-  --bg: #f6f7f8;
-  --surface: #ffffff;
-  --fg: #16181c;
-  --muted: #6b7280;
-  --border: #e3e6ea;
-  --chip: #eef1f3;
-  --accent: #0e9f9a;
+  color-scheme: dark;
+  --bg: #050816;
+  --bg-2: #08102a;
+  --surface: rgba(14, 22, 52, 0.62);
+  --surface-solid: #0c1433;
+  --fg: #e9eeff;
+  --muted: #8a94b8;
+  --border: rgba(110, 150, 255, 0.14);
+  --border-strong: rgba(110, 150, 255, 0.28);
+  --chip: rgba(255, 255, 255, 0.05);
+  --accent: #3b7bff;
+  --accent-2: #5fd0ff;
   --accent-fg: #ffffff;
-  --accent-soft: #dff4f2;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111316;
-    --surface: #181b1f;
-    --fg: #ecebe7;
-    --muted: #8b929b;
-    --border: #262a30;
-    --chip: #22262c;
-    --accent: #2dd4c4;
-    --accent-fg: #0b1214;
-    --accent-soft: #163634;
-  }
+  --accent-soft: rgba(59, 123, 255, 0.16);
+  --glow: 0 0 0 1px rgba(110, 150, 255, 0.08), 0 20px 60px -20px rgba(28, 72, 200, 0.45);
 }
 
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--fg);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+html {
+  background: var(--bg);
 }
 
 body {
-  background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 55% -10%, rgba(40, 90, 255, 0.22), transparent 60%),
+    radial-gradient(800px 500px at 100% 100%, rgba(30, 170, 255, 0.08), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 40%);
+  background-attachment: fixed;
   /* Installed app (viewport-fit=cover): keep content clear of notch and home bar. */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
     env(safe-area-inset-left);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Faint blueprint grid that fades out toward the edges. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(110, 150, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 150, 255, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 20%, black, transparent 75%);
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+.font-display {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Glass card with a soft blue rim. */
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--glow);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+/* Staggered entrance. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* The assistant orb breathes; its halo turns slowly. */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 28px rgba(59, 123, 255, 0.55));
+  }
+  50% {
+    transform: scale(1.035);
+    filter: drop-shadow(0 0 44px rgba(95, 208, 255, 0.6));
+  }
+}
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.orb-breathe {
+  animation: breathe 5s ease-in-out infinite;
+}
+.halo-spin {
+  animation: spin-slow 18s linear infinite;
+}
+.drift {
+  animation: drift 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .orb-breathe,
+  .halo-spin,
+  .drift {
+    animation: none;
+  }
+}
+
+/* Thin, quiet scrollbars inside panels. */
+.scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(110, 150, 255, 0.25) transparent;
 }

@@ -36,6 +36,12 @@ validate input (zod) → check permission ([policy.ts](src/lib/tools/policy.ts))
 - Time: Türkiye-only for now, fixed UTC+3 helpers in [src/lib/time.ts](src/lib/time.ts).
 - Deploy: Vercel.
 
+## UI
+- Design: "night blue, luminous assistant", dark only. Tokens in [globals.css](src/app/globals.css) (`--bg`, `--surface`, `--accent` #3b7bff, `--accent-2` #5fd0ff, `.glass`, `.rise`); fonts Bricolage Grotesque (display) + Onest (body), both with latin-ext for Turkish.
+- Layout: [app-shell.tsx](src/app/app-shell.tsx) (left rail / phone top bar) wraps every signed-in page. Home = chat-centred hero with [YaverOrb](src/app/yaver-orb.tsx) + suggestion bubbles, right column of cards. Show only real data, never placeholder numbers.
+- SVG gradients need per-instance ids (`useId`) when a component renders twice (desktop + phone variants).
+- Home must fit one screen on ≥1024px (user requirement): grid pinned to `100dvh-2.5rem` with `lg:min-h-0 lg:flex-none lg:grid-rows-[minmax(0,1fr)]`; cards in two columns, long ones use `<Card fill>` (scroll inside). Rail is icon-only below 2xl. Hero bubble layout switches by the chat panel's width (`@container` / `@2xl`), not the viewport. Verified at 1280×720, 1366×768, 1440×900, 1920×1080.
+
 ## Commands
 - `npm run dev` / `npm run build` / `npm run lint` / `npm test`
 

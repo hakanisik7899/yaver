@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeWeather, isOutdoorFriendly } from "./codes";
+import { describeWeather, isOutdoorFriendly, weatherEmoji } from "./codes";
 
 describe("describeWeather", () => {
   it("maps WMO codes to Turkish", () => {
@@ -7,6 +7,18 @@ describe("describeWeather", () => {
     expect(describeWeather(63)).toBe("Yağmur");
     expect(describeWeather(1234)).toBe("Bilinmiyor");
     expect(describeWeather(null)).toBe("Bilinmiyor");
+  });
+});
+
+describe("weatherEmoji", () => {
+  it("groups codes into families", () => {
+    expect(weatherEmoji(0)).toBe("☀️");
+    expect(weatherEmoji(2)).toBe("⛅");
+    expect(weatherEmoji(61)).toBe("🌧️");
+    expect(weatherEmoji(81)).toBe("🌧️");
+    expect(weatherEmoji(73)).toBe("❄️");
+    expect(weatherEmoji(95)).toBe("⛈️");
+    expect(weatherEmoji(null)).toBe("🌡️");
   });
 });
 

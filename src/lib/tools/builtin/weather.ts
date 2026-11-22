@@ -1,21 +1,11 @@
 import "server-only";
 import { z } from "zod";
-import { DATE_REGEX, USER_TZ, addDays, daySpan, todayLocal } from "@/lib/time";
+import { DATE_REGEX, addDays, daySpan, todayLocal } from "@/lib/time";
 import { describeWeather, isOutdoorFriendly } from "@/lib/weather/codes";
+import { forecast, geocode, placeLabel } from "@/lib/weather/open-meteo";
 import { defineTool } from "../registry";
 
-// Open-Meteo: free, no API key. Only the city name and dates are sent.
-const GEO = "https://geocoding-api.open-meteo.com/v1/search";
-const FORECAST = "https://api.open-meteo.com/v1/forecast";
 const MAX_AHEAD_DAYS = 15;
-
-interface GeoResult {
-  name: string;
-  latitude: number;
-  longitude: number;
-  admin1?: string;
-  country?: string;
-}
 
 export const getWeatherForecast = defineTool({
   name: "get_weather_forecast",
@@ -39,44 +29,20 @@ export const getWeatherForecast = defineTool({
       throw new Error(`Tahmin en fazla ${MAX_AHEAD_DAYS} gün sonrasına kadar verilebiliyor.`);
     }
 
-    const geoRes = await fetch(`${GEO}?${new URLSearchParams({ name: i.city, count: "1", language: "tr", format: "json" })}`);
-    if (!geoRes.ok) throw new Error("Konum bulunamadı.");
-    const place = ((await geoRes.json()) as { results?: GeoResult[] }).results?.[0];
+    const place = await geocode(i.city);
     if (!place) throw new Error(`"${i.city}" bulunamadı. Şehir adını kontrol et.`);
-
-    const params = new URLSearchParams({
-      latitude: String(place.latitude),
-      longitude: String(place.longitude),
-      daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max",
-      timezone: USER_TZ,
-      start_date: i.start_date,
-      end_date: i.end_date,
-    });
-    const fRes = await fetch(`${FORECAST}?${params}`);
-    if (!fRes.ok) throw new Error(`Hava durumu alınamadı (${fRes.status}).`);
-    const f = (await fRes.json()) as {
-      daily?: {
-        time: string[];
-        weather_code: number[];
-        temperature_2m_max: (number | null)[];
-        temperature_2m_min: (number | null)[];
-        precipitation_probability_max: (number | null)[];
-        wind_speed_10m_max: (number | null)[];
-      };
-    };
-    const d = f.daily;
-    if (!d) throw new Error("Hava durumu verisi yok.");
+    const f = await forecast(place, { start_date: i.start_date, end_date: i.end_date });
 
     return {
-      location: [place.name, place.admin1, place.country].filter(Boolean).join(", "),
-      days: d.time.map((date, k) => ({
-        date,
-        condition: describeWeather(d.weather_code[k]),
-        max_c: d.temperature_2m_max[k],
-        min_c: d.temperature_2m_min[k],
-        rain_chance_pct: d.precipitation_probability_max[k],
-        wind_kmh: d.wind_speed_10m_max[k],
-        good_for_outdoors: isOutdoorFriendly(d.weather_code[k], d.precipitation_probability_max[k], d.temperature_2m_max[k]),
+      location: placeLabel(place),
+      days: f.days.map((d) => ({
+        date: d.date,
+        condition: describeWeather(d.code),
+        max_c: d.max,
+        min_c: d.min,
+        rain_chance_pct: d.rainChance,
+        wind_kmh: d.wind,
+        good_for_outdoors: isOutdoorFriendly(d.code, d.rainChance, d.max),
       })),
       source: "Open-Meteo",
     };

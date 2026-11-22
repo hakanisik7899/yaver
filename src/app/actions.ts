@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { DATE_REGEX } from "@/lib/time";
+import { geocode } from "@/lib/weather/open-meteo";
+import { shortPlaceLabel } from "@/lib/weather/pick-place";
 import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { notifyUser } from "@/lib/notifications/send";
@@ -195,6 +197,40 @@ export async function setBillPaid(billId: string, paid: boolean) {
     .eq("id", billId);
   revalidatePath("/");
   return { ok: !error };
+}
+
+/** Saves the weather card's city after checking that it exists. */
+export async function setWeatherCity(input: string) {
+  const city = z.string().trim().min(2).max(80).safeParse(input);
+  if (!city.success) return { ok: false as const, message: "Şehir adı 2-80 karakter olmalı." };
+  const userId = await currentUserId();
+
+  let place;
+  try {
+    place = await geocode(city.data);
+  } catch {
+    return { ok: false as const, message: "Konum servisine ulaşılamadı, tekrar dene." };
+  }
+  if (!place) return { ok: false as const, message: `"${city.data}" bulunamadı.` };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("user_settings")
+    // Store "Place, Province" so the card re-resolves exactly this place.
+    .upsert({ user_id: userId, weather_city: shortPlaceLabel(place), updated_at: new Date().toISOString() });
+  if (error) {
+    console.error("setWeatherCity failed", error);
+    // PGRST205 / 42P01: the user_settings table (migration 0008) is missing.
+    const missingTable = error.code === "PGRST205" || error.code === "42P01";
+    return {
+      ok: false as const,
+      message: missingTable
+        ? "Şehir kaydedilemedi: ayar tablosu henüz kurulmamış (0008 migration)."
+        : "Şehir kaydedilemedi. Tekrar dene.",
+    };
+  }
+  revalidatePath("/");
+  return { ok: true as const };
 }
 
 export async function declineAction(actionId: string) {

@@ -8,12 +8,20 @@ import type { ChatStreamEvent } from "./api/chat/route";
 import { useSpeechInput } from "./use-speech";
 import { useSpeechOutput, type VoiceReplyMode } from "./use-speech-output";
 import { isStopPhrase } from "@/lib/speech/text";
+import { YaverOrb } from "./yaver-orb";
 
-const SUGGESTIONS = [
+// Only things Yaver can actually do today.
+const HERO_SUGGESTIONS = [
   "Günümü özetle",
-  "Yarınki toplantılarım neler?",
-  "Cumaya kadar sunumu bitirmem gerek, hatırlat",
-  "Bu haftamı planla",
+  "Bu hafta hangi faturalarım var?",
+  "Ailemle hafta sonu ne yapabiliriz?",
+  "Yarın hava nasıl olacak?",
+];
+
+const QUICK_ACTIONS = [
+  { label: "📅 Yarınki toplantılarım", prompt: "Yarınki toplantılarım neler?" },
+  { label: "🗓️ Bu haftamı planla", prompt: "Bu haftamı planla" },
+  { label: "✉️ Son e-postalarım", prompt: "Son gelen önemli e-postalarımı özetle" },
 ];
 
 const MODE_LABEL: Record<VoiceReplyMode, string> = {
@@ -42,9 +50,11 @@ function HeadsetIcon() {
 }
 
 export function Chat({
+  firstName,
   initialConversationId,
   initialTurns = [],
 }: {
+  firstName?: string;
   initialConversationId?: string;
   initialTurns?: Turn[];
 }) {
@@ -228,133 +238,155 @@ export function Chat({
     }
   }
 
+  const bubble = (text: string, i: number, align: "left" | "right", compact = false) => (
+    <button
+      key={text}
+      onClick={() => send(text)}
+      disabled={busy}
+      className={`glass drift group w-full rounded-2xl leading-snug transition ${compact ? "px-4 py-2.5 text-sm" : "px-5 py-4 text-[0.95rem]"} hover:border-[var(--border-strong)] hover:shadow-[0_0_30px_-8px_var(--accent)] disabled:opacity-50 ${
+        align === "left" ? "text-left sm:text-right" : "text-left"
+      }`}
+      style={{ animationDelay: `${i * 0.8}s` }}
+    >
+      {text}
+    </button>
+  );
+
   return (
-    <div className="flex min-h-[24rem] flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] lg:min-h-[28rem]">
-      {(turns.length > 0 || voice.supported) && (
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2 sm:px-5">
-          <span className="text-xs text-[var(--muted)]">
-            {initialConversationId ? "Kayıtlı sohbet" : "Sohbet"}
-          </span>
-          <div className="flex items-center gap-3">
-            {voice.speaking && !handsFree && (
-              <button onClick={voice.cancel} className="text-xs font-medium text-red-500">
-                ■ Durdur
-              </button>
-            )}
-            {voice.supported && speech.supported && !handsFree && (
-              <button
-                onClick={startHandsFree}
-                disabled={busy}
-                title="Elini kullanmadan karşılıklı konuş"
-                className="flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium disabled:opacity-40"
-              >
-                <HeadsetIcon />
-                Sesli sohbet
-              </button>
-            )}
-            {voice.supported && !handsFree && (
-              <button
-                onClick={() => voice.setMode(NEXT_MODE[voice.mode])}
-                aria-label={`Sesli yanıt: ${MODE_LABEL[voice.mode]}. Değiştirmek için dokun.`}
-                title="Sesli yanıt ayarı"
-                className={`flex items-center gap-1 text-xs ${
-                  voice.mode === "off" ? "text-[var(--muted)]" : "text-[var(--fg)]"
-                }`}
-              >
-                <SpeakerIcon muted={voice.mode === "off"} />
-                {MODE_LABEL[voice.mode]}
-              </button>
-            )}
-            {turns.length > 0 && (
-              <button
-                onClick={newChat}
-                disabled={busy}
-                className="text-xs font-medium text-[var(--accent)] disabled:opacity-40"
-              >
-                + Yeni sohbet
-              </button>
-            )}
-          </div>
+    <section className="glass rise @container relative flex min-h-[72dvh] flex-col overflow-hidden rounded-[2rem] lg:h-full lg:min-h-0">
+      {/* Top controls */}
+      <div className="flex items-center justify-between gap-3 px-5 pt-4 sm:px-7 sm:pt-5">
+        <span className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
+          {initialConversationId ? "Kayıtlı sohbet" : "Yaver"}
+        </span>
+        <div className="flex items-center gap-3">
+          {voice.speaking && !handsFree && (
+            <button onClick={voice.cancel} className="text-xs font-medium text-red-400">
+              ■ Durdur
+            </button>
+          )}
+          {voice.supported && !handsFree && (
+            <button
+              onClick={() => voice.setMode(NEXT_MODE[voice.mode])}
+              aria-label={`Sesli yanıt: ${MODE_LABEL[voice.mode]}. Değiştirmek için dokun.`}
+              title="Sesli yanıt ayarı"
+              className={`flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2.5 py-1 text-xs ${
+                voice.mode === "off" ? "text-[var(--muted)]" : "text-[var(--fg)]"
+              }`}
+            >
+              <SpeakerIcon muted={voice.mode === "off"} />
+              {MODE_LABEL[voice.mode]}
+            </button>
+          )}
+          {turns.length > 0 && (
+            <button
+              onClick={newChat}
+              disabled={busy}
+              className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-medium text-[var(--accent-2)] disabled:opacity-40"
+            >
+              + Yeni sohbet
+            </button>
+          )}
         </div>
-      )}
+      </div>
+
       {handsFree && (
         <div
           role="status"
           aria-live="polite"
-          className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--accent-soft)] px-4 py-2.5 sm:px-5"
+          className="mx-5 mt-3 flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-strong)] bg-[var(--accent-soft)] px-4 py-2.5 sm:mx-7"
         >
           <span className="flex items-center gap-2 text-sm font-medium">
             <span
               className={`h-2.5 w-2.5 rounded-full ${
-                speech.listening ? "animate-pulse bg-red-500" : voice.speaking ? "bg-[var(--accent)]" : "bg-[var(--muted)]"
+                speech.listening ? "animate-pulse bg-red-500" : voice.speaking ? "bg-[var(--accent-2)]" : "bg-[var(--muted)]"
               }`}
             />
             {speech.listening ? "Dinliyorum…" : voice.speaking ? "Yaver konuşuyor…" : busy ? "Düşünüyor…" : "Sesli sohbet"}
           </span>
           <span className="flex items-center gap-3">
-            <span className="hidden text-xs text-[var(--muted)] sm:inline">
-              Bitirmek için &quot;tamam teşekkürler&quot; de
-            </span>
-            <button
-              onClick={() => stopHandsFree()}
-              className="rounded-lg bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-red-500"
-            >
+            <span className="hidden text-xs text-[var(--muted)] sm:inline">Bitirmek için &quot;tamam teşekkürler&quot; de</span>
+            <button onClick={() => stopHandsFree()} className="rounded-xl bg-[var(--surface-solid)] px-3 py-1.5 text-xs font-medium text-red-400">
               Bitir
             </button>
           </span>
         </div>
       )}
-      {notice && !handsFree && (
-        <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)] sm:px-5">{notice}</p>
-      )}
-      <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
-        {turns.length === 0 && (
-          <div className="space-y-4">
-            <p className="text-sm text-[var(--muted)]">
-              Ne istediğini yaz; takvimine bakıp planlamana yardım edeyim.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="rounded-full border border-[var(--border)] px-3.5 py-2 text-sm hover:border-[var(--accent)] active:bg-[var(--chip)]"
-                >
-                  {s}
-                </button>
-              ))}
+      {notice && !handsFree && <p className="mx-5 mt-3 text-xs text-[var(--muted)] sm:mx-7">{notice}</p>}
+
+      <div className="scroll-quiet flex-1 overflow-y-auto px-5 py-4 sm:px-7">
+        {turns.length === 0 ? (
+          <div className="flex flex-col items-center pt-4 sm:pt-8">
+            <h1 className="rise text-center font-display text-[2.2rem] font-semibold leading-[1.1] sm:text-5xl" style={{ animationDelay: "80ms" }}>
+              Merhaba
+              {firstName && (
+                <>
+                  ,{" "}
+                  <span className="bg-gradient-to-r from-[var(--accent-2)] to-[var(--accent)] bg-clip-text text-transparent">
+                    {firstName}
+                  </span>
+                </>
+              )}
+              ! <span aria-hidden="true" className="whitespace-nowrap">👋</span>
+              <br />
+              Bugün ne yapalım?
+            </h1>
+
+            {/* Wide chat panel: bubbles flank the orb (container query, not viewport) */}
+            <div className="rise mt-8 hidden w-full max-w-4xl grid-cols-[1fr_auto_1fr] items-center gap-6 @2xl:grid" style={{ animationDelay: "200ms" }}>
+              <div className="flex flex-col gap-5">{HERO_SUGGESTIONS.slice(0, 2).map((s, i) => bubble(s, i, "left"))}</div>
+              <YaverOrb size={220} />
+              <div className="flex flex-col gap-5">{HERO_SUGGESTIONS.slice(2).map((s, i) => bubble(s, i + 2, "right"))}</div>
+            </div>
+
+            {/* Narrow chat panel: orb on top, bubbles in a 2×2 grid */}
+            <div className="rise mt-5 flex w-full max-w-xl flex-col items-center gap-4 @2xl:hidden" style={{ animationDelay: "200ms" }}>
+              <YaverOrb size={130} />
+              <div className="grid w-full grid-cols-2 gap-2.5">{HERO_SUGGESTIONS.map((s, i) => bubble(s, i, "right", true))}</div>
             </div>
           </div>
-        )}
-
-        {turns.map((t, i) =>
-          t.role === "user" ? (
-            <div key={i} className="flex justify-end">
-              <p className="max-w-[85%] rounded-2xl bg-[var(--accent-soft)] px-4 py-2 text-sm">{t.text}</p>
-            </div>
-          ) : (
-            <div key={i} className="max-w-[90%] space-y-2">
-              {t.tools.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {t.tools.map((tool) => (
-                    <span key={tool} className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
-                      {tool}
-                    </span>
-                  ))}
+        ) : (
+          <div className="mx-auto flex max-w-3xl flex-col gap-5">
+            {turns.map((t, i) =>
+              t.role === "user" ? (
+                <div key={i} className="flex justify-end">
+                  <p className="max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-br-md bg-gradient-to-br from-[var(--accent)] to-[#2a5fe0] px-4 py-2.5 text-[0.95rem] text-white shadow-[0_10px_30px_-12px_var(--accent)]">
+                    {t.text}
+                  </p>
                 </div>
-              )}
-              {t.text ? (
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{t.text}</p>
               ) : (
-                !t.error && busy && i === turns.length - 1 && (
-                  <p className="text-sm text-[var(--muted)]">Düşünüyor…</p>
-                )
-              )}
-              {t.error && <p className="text-sm text-red-500">{t.error}</p>}
-            </div>
-          ),
+                <div key={i} className="flex gap-3">
+                  <MiniOrb />
+                  <div className="min-w-0 max-w-[90%] space-y-2">
+                    {t.tools.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {t.tools.map((tool) => (
+                          <span key={tool} className="rounded-full border border-[var(--border)] bg-[var(--chip)] px-2.5 py-0.5 text-xs text-[var(--muted)]">
+                            {tool}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {t.text ? (
+                      <div className="glass whitespace-pre-wrap rounded-3xl rounded-tl-md px-4 py-3 text-[0.95rem] leading-relaxed">{t.text}</div>
+                    ) : (
+                      !t.error &&
+                      busy &&
+                      i === turns.length - 1 && (
+                        <p className="flex items-center gap-2 pt-2 text-sm text-[var(--muted)]">
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--accent-2)]" />
+                          Düşünüyor…
+                        </p>
+                      )
+                    )}
+                    {t.error && <p className="text-sm text-red-400">{t.error}</p>}
+                  </div>
+                </div>
+              ),
+            )}
+            <div ref={bottom} />
+          </div>
         )}
-        <div ref={bottom} />
       </div>
 
       <form
@@ -362,19 +394,9 @@ export function Chat({
           e.preventDefault();
           send(input);
         }}
-        className="border-t border-[var(--border)] p-3"
+        className="px-4 pb-4 sm:px-7 sm:pb-6"
       >
-        <div className="flex gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            readOnly={speech.listening}
-            placeholder={speech.listening ? "Dinliyorum…" : "Yaver'e sor… (ör. Bugün ne yapmalıyım?)"}
-            maxLength={4000}
-            // 16px on phones: iOS zooms into inputs with smaller text.
-            className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2.5 text-base outline-none placeholder:text-[var(--muted)] sm:text-sm"
-            enterKeyHint="send"
-          />
+        <div className="mx-auto flex max-w-3xl items-center gap-2.5">
           {speech.supported && (
             <button
               type="button"
@@ -382,10 +404,10 @@ export function Chat({
               disabled={busy || handsFree}
               aria-label={speech.listening ? "Dinlemeyi bitir" : "Sesle komut ver"}
               aria-pressed={speech.listening}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-40 ${
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border transition disabled:opacity-40 ${
                 speech.listening
                   ? "animate-pulse border-red-500 bg-red-500 text-white"
-                  : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--fg)]"
+                  : "glass text-[var(--fg)] hover:border-[var(--border-strong)]"
               }`}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -395,16 +417,68 @@ export function Chat({
               </svg>
             </button>
           )}
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            readOnly={speech.listening}
+            placeholder={speech.listening ? "Dinliyorum…" : "Mesajını yaz…"}
+            maxLength={4000}
+            // 16px on phones: iOS zooms into inputs with smaller text.
+            className="h-12 min-w-0 flex-1 rounded-full border border-[var(--border)] bg-[rgba(5,8,22,0.55)] px-5 text-base outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:shadow-[0_0_0_4px_var(--accent-soft)] sm:text-[0.95rem]"
+            enterKeyHint="send"
+          />
           <button
             type="submit"
             disabled={busy || speech.listening || !input.trim()}
-            className="shrink-0 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-fg)] disabled:opacity-40"
+            aria-label="Gönder"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--accent-2)] to-[var(--accent)] text-white shadow-[0_8px_24px_-6px_var(--accent)] transition hover:scale-105 disabled:opacity-40 disabled:hover:scale-100"
           >
-            Gönder
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M3.4 20.4 21 12 3.4 3.6l-.1 6.5L15 12 3.3 13.9z" />
+            </svg>
           </button>
         </div>
-        {speech.error && <p className="px-1 pt-2 text-xs text-red-500">{speech.error}</p>}
+        {speech.error && <p className="mx-auto max-w-3xl px-2 pt-2 text-xs text-red-400">{speech.error}</p>}
+
+        <div className="mx-auto mt-3 flex max-w-3xl flex-wrap justify-center gap-2">
+          {QUICK_ACTIONS.map((q) => (
+            <button
+              key={q.label}
+              type="button"
+              onClick={() => send(q.prompt)}
+              disabled={busy}
+              className="rounded-full border border-[var(--border)] bg-[var(--chip)] px-3.5 py-1.5 text-xs text-[var(--muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--fg)] disabled:opacity-40"
+            >
+              {q.label}
+            </button>
+          ))}
+          {voice.supported && speech.supported && !handsFree && (
+            <button
+              type="button"
+              onClick={startHandsFree}
+              disabled={busy}
+              title="Elini kullanmadan karşılıklı konuş"
+              className="flex items-center gap-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-xs font-medium text-[var(--fg)] disabled:opacity-40"
+            >
+              <HeadsetIcon />
+              Sesli sohbet
+            </button>
+          )}
+        </div>
       </form>
-    </div>
+    </section>
+  );
+}
+
+function MiniOrb() {
+  return (
+    <span
+      aria-hidden="true"
+      className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#9fe3ff,#3b7bff_45%,#14246b)] shadow-[0_0_14px_rgba(59,123,255,0.6)]"
+    >
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M7 6l5 6 5-6M12 12v6" />
+      </svg>
+    </span>
   );
 }

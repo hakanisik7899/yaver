@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { USER_TZ } from "@/lib/time";
-import { AppHeader } from "../app-header";
+import { AppShell } from "../app-shell";
 import { DeleteConversationButton } from "./delete-button";
 
 export const metadata = { title: "Geçmiş · Yaver" };
@@ -51,15 +51,16 @@ async function ConversationList() {
 
 export default function HistoryPage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6">
-      <AppHeader active="history" />
-      <section className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-        <h1 className="font-medium">Sohbet geçmişi</h1>
+    <AppShell active="history">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+      <section className="space-y-2 glass rise rounded-3xl p-5">
+        <h1 className="font-display text-xl font-semibold">Sohbet geçmişi</h1>
         <p className="text-xs text-[var(--muted)]">Bir sohbeti açıp kaldığın yerden devam edebilirsin.</p>
         <Suspense fallback={<p className="text-sm text-[var(--muted)]">Yükleniyor…</p>}>
           <ConversationList />
         </Suspense>
       </section>
-    </main>
+    </div>
+    </AppShell>
   );
 }

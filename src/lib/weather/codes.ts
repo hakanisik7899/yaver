@@ -35,6 +35,20 @@ export function describeWeather(code: number | null | undefined): string {
   return CODES[code] ?? "Bilinmiyor";
 }
 
+/** One emoji per weather family, for compact display. */
+export function weatherEmoji(code: number | null | undefined): string {
+  if (code === null || code === undefined) return "🌡️";
+  if (code === 0) return "☀️";
+  if (code === 1) return "🌤️";
+  if (code === 2) return "⛅";
+  if (code === 3) return "☁️";
+  if (code === 45 || code === 48) return "🌫️";
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "🌧️";
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "❄️";
+  if (code >= 95) return "⛈️";
+  return "🌡️";
+}
+
 /** Rough suitability for outdoor plans. */
 export function isOutdoorFriendly(code: number, precipitationProbability: number | null, maxTemp: number | null): boolean {
   const wet = code >= 51 || (precipitationProbability ?? 0) >= 50;

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { GOOGLE_SCOPES } from "@/lib/google/scopes";
+import { YaverOrb } from "../yaver-orb";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -30,11 +31,10 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm space-y-8 text-center">
+      <div className="glass rise w-full max-w-sm space-y-8 rounded-[2rem] p-8 text-center">
         <div className="space-y-3">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static SVG icon */}
-          <img src="/icon.svg" alt="" width={64} height={64} className="mx-auto rounded-2xl" />
-          <h1 className="text-3xl font-semibold tracking-tight">Yaver</h1>
+          <YaverOrb size={170} className="mx-auto" />
+          <h1 className="font-display text-4xl font-semibold">Yaver</h1>
           <p className="text-sm text-[var(--muted)]">
             Günlük işlerini anlayan, planlayan ve senin onayınla halleden asistanın.
           </p>
