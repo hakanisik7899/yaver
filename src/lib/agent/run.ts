@@ -1,6 +1,9 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { invokeTool, registry } from "@/lib/tools";
+import { decide } from "@/lib/tools/policy";
+import { getServerTool, SERVER_TOOLS } from "@/lib/tools/server-tools";
+import type { ActionStore } from "@/lib/tools/store";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
 import type { ToolOutcome } from "@/lib/tools/types";
 import { SYSTEM_PROMPT } from "./prompt";
@@ -28,6 +31,51 @@ export interface AgentTurnInput {
   onEvent: (e: AgentEvent) => void;
 }
 
+/** Server tools the user has not switched off in the Trust Center. */
+async function enabledServerTools(store: ActionStore, userId: string): Promise<Anthropic.Beta.BetaToolUnion[]> {
+  const enabled: Anthropic.Beta.BetaToolUnion[] = [];
+  for (const t of SERVER_TOOLS) {
+    const mode = await store.getPermissionMode(userId, t.name);
+    if (decide(t, mode).run !== "deny") enabled.push(t.definition);
+  }
+  return enabled;
+}
+
+/**
+ * Server tools run at Anthropic, outside invokeTool(); record each use in
+ * the audit log afterwards so the Trust Center still shows them.
+ */
+async function auditServerToolUses(
+  store: ActionStore,
+  userId: string,
+  conversationId: string,
+  content: Anthropic.Beta.BetaContentBlock[],
+  onEvent: (e: AgentEvent) => void,
+) {
+  for (const block of content) {
+    if (block.type !== "server_tool_use") continue;
+    const tool = getServerTool(block.name);
+    if (!tool) continue;
+    onEvent({ type: "tool", name: tool.name, status: "ok" });
+    try {
+      await store.audit({
+        userId,
+        agent: "core",
+        toolName: tool.name,
+        event: "executed",
+        level: 1,
+        input: block.input,
+        summary: tool.summarize(block.input),
+        approvedByUser: false,
+        reversible: false,
+        conversationId,
+      });
+    } catch (err) {
+      console.error("audit of server tool use failed", err);
+    }
+  }
+}
+
 /**
  * Runs one user turn of the agent loop and returns the messages to append
  * to the conversation (the user message, assistant turns and tool results).
@@ -42,7 +90,10 @@ export async function runAgentTurn({
   onEvent,
 }: AgentTurnInput): Promise<Anthropic.Beta.BetaMessageParam[]> {
   const store = createSupabaseActionStore();
-  const tools = registry.toClaudeTools();
+  const tools: Anthropic.Beta.BetaToolUnion[] = [
+    ...registry.toClaudeTools(),
+    ...(await enabledServerTools(store, userId)),
+  ];
   const added: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: userText }];
 
   for (let step = 0; step < MAX_STEPS; step++) {
@@ -52,8 +103,13 @@ export async function runAgentTurn({
       output_config: { effort: EFFORT },
       // On a policy refusal the API re-runs the request on a fallback model
       // chosen by refusal category.
-      betas: ["server-side-fallback-2026-07-01"],
+      betas: ["server-side-fallback-2026-07-01", "thinking-binding-controls-2026-08-01"],
       fallbacks: "default",
+      // Stored conversations outlive deploys: when the system prompt or the
+      // tool list changed since a turn was produced, its thinking blocks no
+      // longer match and the API would reject the whole request (enforced for
+      // new accounts). drop_block ignores just those blocks instead.
+      thinking: { type: "adaptive", block_binding: { prefix_mismatch_behavior: "drop_block" } },
       cache_control: { type: "ephemeral" },
       system: SYSTEM_PROMPT,
       tools,
@@ -80,6 +136,7 @@ export async function runAgentTurn({
     }
 
     added.push({ role: "assistant", content: message.content });
+    await auditServerToolUses(store, userId, conversationId, message.content, onEvent);
 
     if (message.stop_reason === "pause_turn") continue;
     if (toolUses.length === 0) return added;

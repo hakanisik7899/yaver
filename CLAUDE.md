@@ -17,12 +17,14 @@ validate input (zod) → check permission ([policy.ts](src/lib/tools/policy.ts))
 - Define tools with `defineTool()` and register them in [src/lib/tools/index.ts](src/lib/tools/index.ts). Set `kind`, and `sensitive: true` for email/payment/account changes.
 - Approved actions run via `executeApprovedAction()`; never call `tool.execute` directly.
 - Every tool needs a Turkish `label` (shown in the Trust Center at `/trust`) and an entry in [tool-labels.ts](src/lib/agent/tool-labels.ts) for chat chips. The Trust Center reads modes via `allowedModes` / `defaultMode` / `effectiveMode` in policy.ts, so what it shows always matches what `decide()` enforces.
+- Server tools run by Anthropic (web search) live in [server-tools.ts](src/lib/tools/server-tools.ts): not sent when the Trust Center denies them, and each use is audited after the response in `auditServerToolUses` (agent/run.ts).
+- Conversations outlive deploys: the agent loop sends `thinking.block_binding.prefix_mismatch_behavior: "drop_block"` (beta `thinking-binding-controls-2026-08-01`), so changing the system prompt or tool list never breaks a saved conversation (it would be a 400 on new Anthropic accounts). Keep it.
 - Audit log is append-only; reads are logged too.
 - `npm test` covers these rules; keep it green when touching the Tool Layer.
 
 ## Roadmap
 - **v0.1 (current):** Google sign-in, Calendar read + approved event creation (`calendar.events`, no invites), chat over calendar, approvals panel, morning summary card ([src/lib/briefing/generate.ts](src/lib/briefing/generate.ts): generated on first visit of the day; add a 07:00 Vercel Cron calling the same function at deploy time). Shown times always come from calendar data, never from the model.
-- **v0.2 (in progress):** Gmail read-only (`gmail.readonly`, a *restricted* scope: fine for <100 test users, needs Google verification + CASA before public launch). Done: email search/read tools, daily bill scan ([src/lib/bills/scan.ts](src/lib/bills/scan.ts), extraction on `claude-haiku-5-5` by user decision, each email sent to the model once via `email_scan_log`), bills panel, bills in briefing and notifications. Email content is untrusted: returned under `untrusted_email(s)` keys and never treated as instructions. Next: web research (events, venues, weather), weekend/plan generation.
+- **v0.2 (in progress):** Gmail read-only (`gmail.readonly`, a *restricted* scope: fine for <100 test users, needs Google verification + CASA before public launch). Done: email search/read tools, daily bill scan ([src/lib/bills/scan.ts](src/lib/bills/scan.ts), extraction on `claude-haiku-5-5` by user decision, each email sent to the model once via `email_scan_log`), bills panel, bills in briefing and notifications. Email content is untrusted: returned under `untrusted_email(s)` keys and never treated as instructions. Also done: web search (server tool, max 5/turn, TR location) + weather (Open-Meteo, `get_weather_forecast`) + outing/weekend planning in the prompt. A web-research turn costs ~$0.4 (search results are large input).
 - Later: Microsoft 365, Pro billing, Telegram/WhatsApp channel.
 
 ## Stack

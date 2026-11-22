@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { USER_TZ } from "@/lib/time";
 import { registry } from "@/lib/tools";
+import { SERVER_TOOLS } from "@/lib/tools/server-tools";
 import { allowedModes, defaultMode, effectiveMode } from "@/lib/tools/policy";
 import type { PermissionMode } from "@/lib/tools/types";
 import { AppHeader } from "../app-header";
@@ -89,13 +90,13 @@ async function Permissions() {
 
   return (
     <ul className="divide-y divide-[var(--border)]">
-      {registry.list().map((t) => (
+      {[...registry.list(), ...SERVER_TOOLS].map((t) => (
         <li key={t.name} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-sm">
             <p>{t.label}</p>
             <p className="text-xs text-[var(--muted)]">
               {KIND_LABEL[t.kind]}
-              {t.sensitive && " · hassas, her zaman onaylı"}
+              {"sensitive" in t && t.sensitive && " · hassas, her zaman onaylı"}
             </p>
           </div>
           <PermissionControl

@@ -9,6 +9,7 @@ import { notifyUser } from "@/lib/notifications/send";
 import { executeApprovedAction, rejectAction, registry } from "@/lib/tools";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
 import { allowedModes, defaultMode } from "@/lib/tools/policy";
+import { getServerTool } from "@/lib/tools/server-tools";
 import { disconnectGoogle } from "@/lib/google/oauth";
 
 async function currentUserId(): Promise<string> {
@@ -33,7 +34,8 @@ const ModeChoice = z.enum(["auto", "ask", "deny"]);
 
 /** Trust Center: per-tool permission. Choosing the default removes the row. */
 export async function setToolPermission(toolName: string, mode: string) {
-  const tool = registry.get(toolName);
+  // Client tools and Anthropic-run server tools (web search) alike.
+  const tool = registry.get(toolName) ?? getServerTool(toolName);
   const parsed = ModeChoice.safeParse(mode);
   if (!tool || !parsed.success || !allowedModes(tool).includes(parsed.data)) {
     return { ok: false as const };

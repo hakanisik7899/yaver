@@ -12,6 +12,8 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
   read_email: "E-posta okundu",
   list_bills: "Faturalar kontrol edildi",
   mark_bill_paid: "Fatura güncellendi",
+  get_weather_forecast: "Hava durumu kontrol edildi",
+  web_search: "Web'de arandı",
 };
 
 export function activityLabel(toolName: string): string {
