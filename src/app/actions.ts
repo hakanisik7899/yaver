@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { DATE_REGEX } from "@/lib/time";
 import { geocode } from "@/lib/weather/open-meteo";
@@ -57,6 +58,36 @@ export async function setToolPermission(toolName: string, mode: string) {
         });
   revalidatePath("/trust");
   return { ok: !error };
+}
+
+/**
+ * Deletes the account and all of its data: revokes Google access, then
+ * deletes the auth user; every table references auth.users with
+ * "on delete cascade". The user confirms by typing their email address.
+ */
+export async function deleteMyAccount(confirmEmail: string) {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  const email = (data?.claims?.email as string | undefined)?.toLowerCase();
+  if (!userId || !email) return { ok: false as const, message: "Oturum bulunamadı." };
+  if (confirmEmail.trim().toLowerCase() !== email) {
+    return { ok: false as const, message: "Yazdığın e-posta adresi hesabınla eşleşmiyor." };
+  }
+
+  try {
+    await disconnectGoogle(userId);
+  } catch (err) {
+    // The token row is deleted with the user below anyway.
+    console.error("deleteMyAccount: Google disconnect failed", err);
+  }
+  const { error } = await createAdminClient().auth.admin.deleteUser(userId);
+  if (error) {
+    console.error("deleteMyAccount failed", error);
+    return { ok: false as const, message: "Hesap silinemedi. Lütfen tekrar dene." };
+  }
+  await supabase.auth.signOut();
+  redirect("/hesap-silindi");
 }
 
 export async function disconnectGoogleAccount() {

@@ -7,7 +7,7 @@ import { SERVER_TOOLS } from "@/lib/tools/server-tools";
 import { allowedModes, defaultMode, effectiveMode } from "@/lib/tools/policy";
 import type { PermissionMode } from "@/lib/tools/types";
 import { AppShell } from "../app-shell";
-import { DisconnectGoogleButton, PermissionControl } from "./controls";
+import { DeleteAccount, DisconnectGoogleButton, PermissionControl } from "./controls";
 import { NotificationSettings } from "./notification-settings";
 import { getPlan } from "@/lib/plans/usage";
 import { normalizePrefs } from "@/lib/notifications/rules";
@@ -219,11 +219,27 @@ export default function TrustPage({ searchParams }: PageProps<"/trust">) {
       <section className="space-y-2 glass rise rounded-3xl p-5">
         <h2 className="font-medium">İşlem kaydı</h2>
         <p className="text-xs text-[var(--muted)]">
-          Yaver&apos;in yaptığı ve önerdiği her işlem burada. Kayıtlar değiştirilemez ve silinemez.
+          Yaver&apos;in yaptığı ve önerdiği her işlem burada. Kayıtlar değiştirilemez; yalnızca hesabını silersen silinir.
         </p>
         <Suspense fallback={<Loading />}>
           <AuditLog searchParams={searchParams} />
         </Suspense>
+      </section>
+
+      <section className="space-y-3 glass rise rounded-3xl p-5">
+        <h2 className="font-medium">Belgeler ve hesap</h2>
+        <p className="text-sm">
+          <Link href="/gizlilik" className="text-[var(--accent-2)] hover:underline">
+            Gizlilik ve KVKK Aydınlatma Metni
+          </Link>
+          {" · "}
+          <Link href="/kullanim-sartlari" className="text-[var(--accent-2)] hover:underline">
+            Kullanım Şartları
+          </Link>
+        </p>
+        <div className="border-t border-[var(--border)] pt-3">
+          <DeleteAccount />
+        </div>
       </section>
     </div>
     </AppShell>

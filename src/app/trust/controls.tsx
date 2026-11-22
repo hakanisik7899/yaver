@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { PermissionMode } from "@/lib/tools/types";
-import { disconnectGoogleAccount, setToolPermission } from "../actions";
+import { deleteMyAccount, disconnectGoogleAccount, setToolPermission } from "../actions";
 
 const LABEL: Record<PermissionMode, string> = { auto: "Otomatik", ask: "Onay iste", deny: "Kapalı" };
 
@@ -80,5 +80,73 @@ export function DisconnectGoogleButton() {
     >
       {pending ? "Kaldırılıyor…" : "Bağlantıyı kaldır"}
     </button>
+  );
+}
+
+export function DeleteAccount() {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded-lg border border-red-500/40 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10"
+      >
+        Hesabımı ve verilerimi sil
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setError(null);
+        startTransition(async () => {
+          // Redirects away on success; only a failure returns here.
+          const res = await deleteMyAccount(email);
+          if (res && !res.ok) setError(res.message);
+        });
+      }}
+    >
+      <p className="text-sm">
+        Bu işlem geri alınamaz. Yaver&apos;in Google erişimi iptal edilir; sohbetlerin, görevlerin, faturaların,
+        ayarların, işlem kayıtların ve hesabın kalıcı olarak silinir. Onaylamak için Google e-posta adresini yaz.
+      </p>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="ornek@gmail.com"
+        autoComplete="off"
+        className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-2 text-base sm:text-sm"
+      />
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={pending || !email.trim()}
+          className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+        >
+          {pending ? "Siliniyor…" : "Kalıcı olarak sil"}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            setOpen(false);
+            setEmail("");
+            setError(null);
+          }}
+          className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm"
+        >
+          Vazgeç
+        </button>
+      </div>
+      {error && <p className="text-sm text-red-400">{error}</p>}
+    </form>
   );
 }
