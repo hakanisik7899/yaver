@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { attachmentNames, extractBody, header, htmlToText } from "./gmail-parse";
+import { attachmentNames, extractBody, header, htmlToText, MAX_PDF_BYTES, pdfAttachments, pickBillPdf } from "./gmail-parse";
+
+describe("pdfAttachments / pickBillPdf", () => {
+  const payload = {
+    mimeType: "multipart/mixed",
+    parts: [
+      { mimeType: "text/plain", body: { data: "eA" } },
+      { mimeType: "application/pdf", filename: "kampanya.pdf", body: { attachmentId: "a1", size: 2000 } },
+      { mimeType: "application/octet-stream", filename: "E-Arsiv_Fatura_2026.PDF", body: { attachmentId: "a2", size: 90_000 } },
+      { mimeType: "image/png", filename: "logo.png", body: { attachmentId: "a3", size: 500 } },
+    ],
+  };
+
+  it("finds PDFs by mime type or extension", () => {
+    expect(pdfAttachments(payload).map((p) => p.attachmentId)).toEqual(["a1", "a2"]);
+  });
+
+  it("prefers bill-like names and skips oversized files", () => {
+    expect(pickBillPdf(pdfAttachments(payload))?.attachmentId).toBe("a2");
+    expect(pickBillPdf([{ attachmentId: "big", filename: "fatura.pdf", size: MAX_PDF_BYTES + 1 }])).toBeNull();
+    expect(pickBillPdf([{ attachmentId: "x", filename: "belge.pdf", size: 100 }])?.attachmentId).toBe("x");
+    expect(pickBillPdf([])).toBeNull();
+  });
+});
 
 const b64url = (s: string) => Buffer.from(s, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 

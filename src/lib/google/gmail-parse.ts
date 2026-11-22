@@ -3,7 +3,7 @@
 export interface GmailPart {
   mimeType?: string;
   filename?: string;
-  body?: { data?: string; size?: number };
+  body?: { data?: string; size?: number; attachmentId?: string };
   parts?: GmailPart[];
   headers?: { name: string; value: string }[];
 }
@@ -51,6 +51,39 @@ export function extractBody(payload: GmailPart | undefined): string {
   walk(payload);
   if (plain.length) return plain.join("\n").trim();
   return htmlToText(html.join("\n"));
+}
+
+export interface PdfAttachment {
+  attachmentId: string;
+  filename: string;
+  size: number;
+}
+
+/** PDF attachments that can be downloaded by id. */
+export function pdfAttachments(payload: GmailPart | undefined): PdfAttachment[] {
+  const out: PdfAttachment[] = [];
+  const walk = (p?: GmailPart) => {
+    if (!p) return;
+    const isPdf = p.mimeType === "application/pdf" || /\.pdf$/i.test(p.filename ?? "");
+    if (isPdf && p.filename && p.body?.attachmentId) {
+      out.push({ attachmentId: p.body.attachmentId, filename: p.filename, size: p.body.size ?? 0 });
+    }
+    p.parts?.forEach(walk);
+  };
+  walk(payload);
+  return out;
+}
+
+export const MAX_PDF_BYTES = 5 * 1024 * 1024;
+const BILL_NAME = /fatura|e-?ar[sş]iv|ekstre|hesap.?[öo]zet|invoice|bill|statement/i;
+
+/**
+ * The PDF most likely to be the bill: small enough to send, preferring
+ * names like "fatura", "e-arşiv", "ekstre". Null if none fits.
+ */
+export function pickBillPdf(pdfs: PdfAttachment[]): PdfAttachment | null {
+  const sendable = pdfs.filter((p) => p.size > 0 && p.size <= MAX_PDF_BYTES);
+  return sendable.find((p) => BILL_NAME.test(p.filename)) ?? sendable[0] ?? null;
 }
 
 export function attachmentNames(payload: GmailPart | undefined): string[] {

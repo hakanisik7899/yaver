@@ -1,5 +1,12 @@
 import "server-only";
-import { attachmentNames, extractBody, header, type GmailPart } from "./gmail-parse";
+import {
+  attachmentNames,
+  extractBody,
+  header,
+  pdfAttachments,
+  type GmailPart,
+  type PdfAttachment,
+} from "./gmail-parse";
 import { getGoogleAccessToken } from "./oauth";
 
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
@@ -47,6 +54,15 @@ export interface EmailSummary {
 export interface EmailFull extends EmailSummary {
   body: string;
   attachments: string[];
+  pdfs: PdfAttachment[];
+}
+
+/** Downloads one attachment; returns standard base64 (as the Claude API expects). */
+export async function getAttachmentBase64(userId: string, messageId: string, attachmentId: string): Promise<string> {
+  const json = (await gmailFetch(userId, `/messages/${messageId}/attachments/${attachmentId}`)) as { data?: string };
+  if (!json.data) throw new Error("Ek indirilemedi.");
+  // Gmail returns base64url; the Claude API wants standard base64.
+  return json.data.replace(/-/g, "+").replace(/_/g, "/");
 }
 
 /** Message ids matching a Gmail search query (Gmail search syntax). */
@@ -85,5 +101,6 @@ export async function getEmail(userId: string, id: string, maxChars = 8000): Pro
     snippet: m.snippet ?? "",
     body: body.length > maxChars ? `${body.slice(0, maxChars)}\n[…kısaltıldı]` : body,
     attachments: attachmentNames(m.payload),
+    pdfs: pdfAttachments(m.payload),
   };
 }

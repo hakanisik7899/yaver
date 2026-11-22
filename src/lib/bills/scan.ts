@@ -1,5 +1,7 @@
 import "server-only";
-import { getEmail, GmailNotAllowedError, searchMessageIds } from "@/lib/google/gmail";
+import { getAttachmentBase64, getEmail, GmailNotAllowedError, searchMessageIds } from "@/lib/google/gmail";
+import { pickBillPdf } from "@/lib/google/gmail-parse";
+import { mergeBills, needsPdf } from "./merge";
 import { GoogleNotConnectedError } from "@/lib/google/oauth";
 import { createAdminClient } from "@/lib/supabase/server";
 import { dayStart, todayLocal } from "@/lib/time";
@@ -8,8 +10,9 @@ import type { PermissionMode } from "@/lib/tools/types";
 import { extractBill } from "./extract";
 
 // Turkish bill wording; sent/drafts/promotions excluded.
+// Also matches mails whose only bill content is a PDF named like an invoice.
 const BILL_QUERY =
-  'newer_than:45d (fatura OR "son ödeme" OR ekstre OR "e-arşiv" OR "e-fatura" OR "dönem borcu" OR "ödenecek tutar") -in:sent -in:drafts -category:promotions';
+  'newer_than:45d (fatura OR "son ödeme" OR ekstre OR "e-arşiv" OR "e-fatura" OR "dönem borcu" OR "ödenecek tutar" OR filename:fatura OR filename:ekstre OR filename:arsiv) -in:sent -in:drafts -category:promotions';
 const SEARCH_LIMIT = 30;
 const MAX_NEW_PER_RUN = 15; // caps model calls (cost) per user per run
 
@@ -78,7 +81,13 @@ export async function ensureDailyBillScan(userId: string, { force = false } = {}
     let result: "bill" | "not_bill" | "error" = "not_bill";
     try {
       const email = await getEmail(userId, id, 6000);
-      const bill = await extractBill(email);
+      let bill = await extractBill(email);
+      // Many providers put the amount/date only in the attached PDF.
+      const pdf = needsPdf(bill) ? pickBillPdf(email.pdfs) : null;
+      if (pdf) {
+        const base64 = await getAttachmentBase64(userId, id, pdf.attachmentId);
+        bill = mergeBills(bill, await extractBill(email, { filename: pdf.filename, base64 }));
+      }
       if (bill) {
         const { error: insertError } = await db
           .from("bills")
