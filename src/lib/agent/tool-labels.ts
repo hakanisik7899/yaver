@@ -8,6 +8,10 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
   create_task: "Görev eklendi",
   complete_task: "Görev tamamlandı",
   update_task: "Görev güncellendi",
+  search_emails: "E-postalar arandı",
+  read_email: "E-posta okundu",
+  list_bills: "Faturalar kontrol edildi",
+  mark_bill_paid: "Fatura güncellendi",
 };
 
 export function activityLabel(toolName: string): string {

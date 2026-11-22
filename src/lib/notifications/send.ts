@@ -28,7 +28,7 @@ export function localTimeHHMM(date = new Date()): string {
 export async function getPrefs(userId: string): Promise<NotificationPrefs> {
   const { data } = await createAdminClient()
     .from("notification_prefs")
-    .select("briefing, meetings, overdue_tasks, approvals, quiet_start, quiet_end")
+    .select("briefing, meetings, overdue_tasks, approvals, bills, quiet_start, quiet_end")
     .eq("user_id", userId)
     .maybeSingle();
   return normalizePrefs(data);

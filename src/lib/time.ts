@@ -33,6 +33,13 @@ export function formatTime(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** "2026-11-21" + 3 -> "2026-11-24". */
+export function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /** Today's date in the user's zone, YYYY-MM-DD. */
 export function todayLocal(): string {
   // en-CA formats as YYYY-MM-DD.

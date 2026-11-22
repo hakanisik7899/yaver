@@ -1,10 +1,11 @@
-export type NotificationKind = "briefing" | "meetings" | "overdue_tasks" | "approvals";
+export type NotificationKind = "briefing" | "meetings" | "overdue_tasks" | "approvals" | "bills";
 
 export interface NotificationPrefs {
   briefing: boolean;
   meetings: boolean;
   overdue_tasks: boolean;
   approvals: boolean;
+  bills: boolean;
   quiet_start: string; // "HH:MM" local time
   quiet_end: string;
 }
@@ -14,6 +15,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   meetings: true,
   overdue_tasks: true,
   approvals: true,
+  bills: true,
   quiet_start: "22:00",
   quiet_end: "07:00",
 };

@@ -1,6 +1,8 @@
 import "server-only";
 import { createCalendarEvent, findFreeSlots, listCalendarEvents } from "./builtin/calendar";
+import { listBills, markBillPaid } from "./builtin/bills";
 import { getCurrentDatetime } from "./builtin/datetime";
+import { readEmail, searchEmails } from "./builtin/email";
 import { completeTask, createTask, listTasks, updateTask } from "./builtin/tasks";
 import { ToolRegistry } from "./registry";
 
@@ -14,6 +16,10 @@ export const registry = new ToolRegistry().register(
   createTask,
   completeTask,
   updateTask,
+  searchEmails,
+  readEmail,
+  listBills,
+  markBillPaid,
 );
 
 export { invokeTool, executeApprovedAction, rejectAction } from "./executor";

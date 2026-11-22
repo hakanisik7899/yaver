@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/bills/format";
 import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { createClient } from "@/lib/supabase/server";
 import { formatTime } from "@/lib/time";
@@ -39,7 +40,8 @@ export async function BriefingCard() {
     );
   }
 
-  const { ai, freeSlots, pendingCount, tasks = [] } = result.briefing;
+  const { ai, freeSlots, pendingCount, tasks = [], bills = [] } = result.briefing;
+  const billTotal = bills.reduce((sum, b) => sum + (b.amount ?? 0), 0);
   const overdueCount = tasks.filter((t) => t.overdue).length;
   const events = markEnded(result.briefing.events);
 
@@ -76,6 +78,12 @@ export async function BriefingCard() {
             <p className="pt-1 text-xs text-[var(--muted)]">
               Bugün {tasks.length} görev
               {overdueCount > 0 && <span className="text-red-500"> · {overdueCount} gecikmiş</span>}
+            </p>
+          )}
+          {bills.length > 0 && (
+            <p className="pt-1 text-xs text-[var(--muted)]">
+              Bu hafta {bills.length} fatura
+              {billTotal > 0 && ` · toplam ${formatMoney(billTotal)}`}
             </p>
           )}
           {freeSlots.length > 0 && (

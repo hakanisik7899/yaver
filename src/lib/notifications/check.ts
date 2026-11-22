@@ -3,7 +3,8 @@ import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { listEvents } from "@/lib/google/calendar";
 import { GoogleNotConnectedError } from "@/lib/google/oauth";
 import { createAdminClient } from "@/lib/supabase/server";
-import { formatTime, nextDayStart, todayLocal } from "@/lib/time";
+import { dueLabel, formatMoney } from "@/lib/bills/format";
+import { addDays, formatTime, nextDayStart, todayLocal } from "@/lib/time";
 import { registry } from "@/lib/tools";
 import { effectiveMode } from "@/lib/tools/policy";
 import type { PermissionMode } from "@/lib/tools/types";
@@ -55,7 +56,11 @@ async function allowedReads(userId: string) {
     const tool = registry.get(name);
     return !!tool && effectiveMode(tool, stored.get(name)) !== "deny";
   };
-  return { calendar: allowed("list_calendar_events"), tasks: allowed("list_tasks") };
+  return {
+    calendar: allowed("list_calendar_events"),
+    tasks: allowed("list_tasks"),
+    bills: allowed("list_bills"),
+  };
 }
 
 async function checkUser(userId: string, now: Date): Promise<SendResult[]> {
@@ -72,8 +77,40 @@ async function checkUser(userId: string, now: Date): Promise<SendResult[]> {
   if (prefs.overdue_tasks && reads.tasks && inDaytime(time)) {
     results.push(await overdueTasks(userId, today, prefs));
   }
+  if (prefs.bills && reads.bills && inDaytime(time)) {
+    results.push(...(await billsDueSoon(userId, today, prefs)));
+  }
   if (prefs.approvals) results.push(...(await waitingApprovals(userId, now, prefs)));
   return results;
+}
+
+const BILL_LEAD_DAYS = 2;
+
+/** Unpaid bills due within two days (or today), one notification per bill. */
+async function billsDueSoon(userId: string, today: string, prefs: NotificationPrefs) {
+  const { data } = await createAdminClient()
+    .from("bills")
+    .select("id, provider, amount, currency, due_date")
+    .eq("user_id", userId)
+    .eq("status", "unpaid")
+    .gte("due_date", today)
+    .lte("due_date", addDays(today, BILL_LEAD_DAYS))
+    .limit(10);
+  return Promise.all(
+    (data ?? []).map((b) =>
+      notifyUser(
+        userId,
+        {
+          kind: "bills",
+          refKey: b.id,
+          title: `${b.provider} faturası: son ödeme ${dueLabel(b.due_date, today)}`,
+          body: `Tutar: ${formatMoney(b.amount, b.currency)}`,
+          url: "/",
+        },
+        { prefs },
+      ),
+    ),
+  );
 }
 
 async function meetingReminders(userId: string, now: Date, today: string, prefs: NotificationPrefs) {

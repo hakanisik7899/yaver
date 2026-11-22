@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { toDisplayTurns, type DisplayTurn } from "@/lib/agent/history";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "./app-header";
+import { BillsPanel } from "./bills-panel";
 import { BriefingCard, BriefingSkeleton } from "./briefing-card";
 import { Chat } from "./chat";
 import { PendingActions } from "./pending-actions";
@@ -63,6 +64,12 @@ export default function HomePage({ searchParams }: PageProps<"/">) {
             <h2 className="font-medium">Görevler</h2>
             <Suspense fallback={<p className="text-sm text-[var(--muted)]">Yükleniyor…</p>}>
               <TasksPanel />
+            </Suspense>
+          </section>
+          <section className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="font-medium">Faturalar</h2>
+            <Suspense fallback={<p className="text-sm text-[var(--muted)]">Yükleniyor…</p>}>
+              <BillsPanel />
             </Suspense>
           </section>
           <section className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">

@@ -57,7 +57,7 @@ async function Connections() {
         <p className="font-medium">Google Takvim</p>
         {data ? (
           <p className="text-xs text-[var(--muted)]">
-            Bağlı · izin: etkinlikleri okuma ve onayınla ekleme · {when(data.updated_at)}
+            Bağlı · izin: takvimi okuma ve onayınla etkinlik ekleme, e-postaları okuma (gönderme yok) · {when(data.updated_at)}
           </p>
         ) : (
           <p className="text-xs text-[var(--muted)]">
@@ -75,7 +75,7 @@ async function Notifications() {
   const [{ data: prefs }, { count }] = await Promise.all([
     supabase
       .from("notification_prefs")
-      .select("briefing, meetings, overdue_tasks, approvals, quiet_start, quiet_end")
+      .select("briefing, meetings, overdue_tasks, approvals, bills, quiet_start, quiet_end")
       .maybeSingle(),
     supabase.from("push_subscriptions").select("id", { count: "exact", head: true }),
   ]);

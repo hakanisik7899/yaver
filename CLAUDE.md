@@ -22,7 +22,7 @@ validate input (zod) → check permission ([policy.ts](src/lib/tools/policy.ts))
 
 ## Roadmap
 - **v0.1 (current):** Google sign-in, Calendar read + approved event creation (`calendar.events`, no invites), chat over calendar, approvals panel, morning summary card ([src/lib/briefing/generate.ts](src/lib/briefing/generate.ts): generated on first visit of the day; add a 07:00 Vercel Cron calling the same function at deploy time). Shown times always come from calendar data, never from the model.
-- **v0.2:** Bills from Gmail e-invoices (Gmail is a *restricted* scope: fine for <100 beta testers, needs Google verification + CASA assessment before public launch), web research (events, venues, weather), weekend/plan generation.
+- **v0.2 (in progress):** Gmail read-only (`gmail.readonly`, a *restricted* scope: fine for <100 test users, needs Google verification + CASA before public launch). Done: email search/read tools, daily bill scan ([src/lib/bills/scan.ts](src/lib/bills/scan.ts), extraction on `claude-haiku-5-5` by user decision, each email sent to the model once via `email_scan_log`), bills panel, bills in briefing and notifications. Email content is untrusted: returned under `untrusted_email(s)` keys and never treated as instructions. Next: web research (events, venues, weather), weekend/plan generation.
 - Later: Microsoft 365, Pro billing, Telegram/WhatsApp channel.
 
 ## Stack

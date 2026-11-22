@@ -115,6 +115,7 @@ const Prefs = z.object({
   meetings: z.boolean(),
   overdue_tasks: z.boolean(),
   approvals: z.boolean(),
+  bills: z.boolean(),
   quiet_start: TIME,
   quiet_end: TIME,
 });
@@ -176,6 +177,20 @@ export async function setTaskDone(taskId: string, done: boolean) {
     .from("tasks")
     .update(done ? { status: "done", completed_at: new Date().toISOString() } : { status: "open", completed_at: null })
     .eq("id", taskId);
+  revalidatePath("/");
+  return { ok: !error };
+}
+
+/** Direct user action from the bills panel; records payment, pays nothing. */
+export async function setBillPaid(billId: string, paid: boolean) {
+  if (!z.uuid().safeParse(billId).success) return { ok: false as const };
+  await currentUserId();
+  const supabase = await createClient();
+  // RLS limits the update to the signed-in user's own bill.
+  const { error } = await supabase
+    .from("bills")
+    .update(paid ? { status: "paid", paid_at: new Date().toISOString() } : { status: "unpaid", paid_at: null })
+    .eq("id", billId);
   revalidatePath("/");
   return { ok: !error };
 }
