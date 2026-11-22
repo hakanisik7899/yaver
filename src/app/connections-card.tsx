@@ -29,7 +29,7 @@ export async function ConnectionsCard() {
 
   const items: Connection[] = [
     { name: "Google Takvim", short: "Takvim", detail: "okuma · onaylı ekleme", on: !!google && readOn("list_calendar_events"), icon: "📅" },
-    { name: "Gmail", short: "Gmail", detail: "yalnızca okuma", on: scopes.includes("gmail") && readOn("search_emails"), icon: "✉️" },
+    { name: "Gmail", short: "Gmail", detail: scopes.includes("gmail.compose") ? "okuma · onaylı yanıt taslağı" : "okuma", on: scopes.includes("gmail") && readOn("search_emails"), icon: "✉️" },
     { name: "Web araması", short: "Web", detail: "etkinlik, mekan, bilgi", on: readOn("web_search"), icon: "🔎" },
     { name: "Hava durumu", short: "Hava", detail: "Open-Meteo", on: readOn("get_weather_forecast"), icon: "⛅" },
   ];

@@ -12,15 +12,20 @@ import { getGoogleAccessToken } from "./oauth";
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 
 export class GmailNotAllowedError extends Error {
-  constructor() {
-    super("E-postalarını okuma izni yok. Yaver'e bu izni vermek için çıkış yapıp tekrar Google ile giriş yap.");
+  constructor(what = "E-postalarını okuma") {
+    super(`${what} izni yok. Yaver'e bu izni vermek için çıkış yapıp tekrar Google ile giriş yap.`);
   }
 }
 
-async function gmailFetch(userId: string, path: string) {
+async function gmailFetch(userId: string, path: string, init?: { method: "POST"; body: unknown }) {
   const token = await getGoogleAccessToken(userId);
   const res = await fetch(`${API}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    method: init?.method ?? "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(init ? { "Content-Type": "application/json" } : {}),
+    },
+    body: init ? JSON.stringify(init.body) : undefined,
     cache: "no-store",
   });
   if (res.status === 403) {
@@ -35,11 +40,11 @@ async function gmailFetch(userId: string, path: string) {
         "Gmail API, Google Cloud projesinde kapalı. Google Cloud Console → APIs & Services → Library → Gmail API → Enable ile açılmalı.",
       );
     }
-    // Otherwise the token lacks gmail.readonly (granted before it was added
-    // or unticked on the consent screen).
-    throw new GmailNotAllowedError();
+    // Otherwise the token lacks the scope (granted before it was added or
+    // unticked on the consent screen).
+    throw new GmailNotAllowedError(init ? "Gmail'de taslak oluşturma" : undefined);
   }
-  if (!res.ok) throw new Error(`Gmail okunamadı (${res.status})`);
+  if (!res.ok) throw new Error(init ? `Gmail taslağı oluşturulamadı (${res.status})` : `Gmail okunamadı (${res.status})`);
   return res.json();
 }
 
@@ -103,4 +108,46 @@ export async function getEmail(userId: string, id: string, maxChars = 8000): Pro
     attachments: attachmentNames(m.payload),
     pdfs: pdfAttachments(m.payload),
   };
+}
+
+export interface ReplyContext {
+  threadId: string;
+  subject: string;
+  /** Where a reply goes by default: Reply-To, else From. */
+  replyTo: string;
+  /** Everyone on the original message (From, Reply-To, To, Cc). */
+  participants: string;
+  messageId: string;
+  references: string;
+}
+
+/** Headers needed to answer a message inside its thread. */
+export async function getReplyContext(userId: string, id: string): Promise<ReplyContext> {
+  const params = new URLSearchParams({ format: "metadata" });
+  for (const h of ["From", "Reply-To", "To", "Cc", "Subject", "Message-ID", "References"]) {
+    params.append("metadataHeaders", h);
+  }
+  const m = (await gmailFetch(userId, `/messages/${encodeURIComponent(id)}?${params}`)) as {
+    threadId: string;
+    payload?: GmailPart;
+  };
+  const from = header(m.payload, "From");
+  const replyTo = header(m.payload, "Reply-To");
+  return {
+    threadId: m.threadId,
+    subject: header(m.payload, "Subject"),
+    replyTo: replyTo || from,
+    participants: [from, replyTo, header(m.payload, "To"), header(m.payload, "Cc")].join(", "),
+    messageId: header(m.payload, "Message-ID"),
+    references: header(m.payload, "References"),
+  };
+}
+
+/** Saves a draft in the user's Gmail (Drafts folder, inside the thread). Never sends. */
+export async function createDraft(userId: string, raw: string, threadId: string): Promise<{ id: string }> {
+  const json = (await gmailFetch(userId, "/drafts", {
+    method: "POST",
+    body: { message: { raw, threadId } },
+  })) as { id: string };
+  return { id: json.id };
 }

@@ -4,11 +4,14 @@
  * - gmail.readonly: read email for bills and email search. Never send.
  *   This is a RESTRICTED scope: fine for test users (<100), but a public
  *   launch needs Google verification and a CASA security assessment.
+ * - gmail.compose: save reply drafts after the user approves. Yaver never
+ *   sends; the user sends from Gmail. Also restricted.
  */
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.compose",
 ].join(" ");
 
 /** Short label stored with the connection, for display and debugging. */
-export const GOOGLE_SCOPES_LABEL = "calendar.events gmail.readonly";
+export const GOOGLE_SCOPES_LABEL = "calendar.events gmail.readonly gmail.compose";

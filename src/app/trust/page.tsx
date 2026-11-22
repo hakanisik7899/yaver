@@ -55,10 +55,10 @@ async function Connections() {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="space-y-0.5 text-sm">
-        <p className="font-medium">Google Takvim</p>
+        <p className="font-medium">Google (Takvim + Gmail)</p>
         {data ? (
           <p className="text-xs text-[var(--muted)]">
-            Bağlı · izin: takvimi okuma ve onayınla etkinlik ekleme, e-postaları okuma (gönderme yok) · {when(data.updated_at)}
+            Bağlı · izin: takvimi okuma ve onayınla etkinlik ekleme, e-postaları okuma ve onayınla Gmail&apos;e yanıt taslağı kaydetme (gönderme yok) · {when(data.updated_at)}
           </p>
         ) : (
           <p className="text-xs text-[var(--muted)]">

@@ -10,6 +10,7 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
   update_task: "Görev güncellendi",
   search_emails: "E-postalar arandı",
   read_email: "E-posta okundu",
+  create_email_reply_draft: "Taslak onaya gönderildi",
   list_bills: "Faturalar kontrol edildi",
   mark_bill_paid: "Fatura güncellendi",
   get_weather_forecast: "Hava durumu kontrol edildi",
