@@ -9,6 +9,8 @@ const BILL_COLUMNS = "id, provider, category, amount, currency, due_date, period
 
 export const listBills = defineTool({
   name: "list_bills",
+  // Gmail features are Pro only.
+  requiresPro: true,
   label: "Faturaları okuma",
   description:
     "Lists the user's bills found in their email (provider, amount, last payment date, paid " +
@@ -41,6 +43,8 @@ export const listBills = defineTool({
 
 export const markBillPaid = defineTool({
   name: "mark_bill_paid",
+  // Gmail features are Pro only.
+  requiresPro: true,
   label: "Faturayı ödendi işaretleme",
   description:
     "Marks a bill as paid (or unpaid again) in Yaver's list. It does NOT pay anything; it only " +

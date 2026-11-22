@@ -42,6 +42,8 @@ function memoryStore(modes: Record<string, PermissionMode> = {}) {
 const readExec = vi.fn(async () => ({ events: 3 }));
 const writeExec = vi.fn(async (_ctx, input: { title: string }) => ({ created: input.title }));
 const sendExec = vi.fn(async () => ({ sent: true }));
+const mailExec = vi.fn(async () => ({ mails: 2 }));
+const draftExec = vi.fn(async () => ({ saved: true }));
 
 const registry = new ToolRegistry().register(
   defineTool({
@@ -73,6 +75,27 @@ const registry = new ToolRegistry().register(
     summarize: (i) => `E-posta gönder: ${i.to}`,
     execute: sendExec,
   }),
+  defineTool({
+    name: "read_mail",
+    label: "read_mail",
+    description: "Read mail",
+    kind: "read",
+    requiresPro: true,
+    input: z.strictObject({}),
+    summarize: () => "E-posta okundu",
+    execute: mailExec,
+  }),
+  defineTool({
+    name: "draft_reply",
+    label: "draft_reply",
+    description: "Draft reply",
+    kind: "write",
+    sensitive: true,
+    requiresPro: true,
+    input: z.strictObject({ body: z.string() }),
+    summarize: () => "Taslak kaydet",
+    execute: draftExec,
+  }),
 );
 
 const ctx = { userId: "u1", agent: "core" };
@@ -98,6 +121,45 @@ describe("policy", () => {
 
   it("denies when the user disabled the tool, even for reads", () => {
     expect(decide({ kind: "read" }, "deny").run).toBe("deny");
+  });
+});
+
+describe("plans", () => {
+  it("denies Pro-only tools on Free (and without a plan), and audits it", async () => {
+    mailExec.mockClear();
+    for (const plan of ["free", undefined] as const) {
+      const { store, audits } = memoryStore({ read_mail: "auto" });
+      const out = await invokeTool(registry, store, { ...ctx, plan }, "read_mail", {});
+      expect(out.status).toBe("denied");
+      expect(audits).toMatchObject([{ event: "denied" }]);
+    }
+    expect(mailExec).not.toHaveBeenCalled();
+  });
+
+  it("runs Pro-only tools on Pro", async () => {
+    const { store } = memoryStore();
+    const out = await invokeTool(registry, store, { ...ctx, plan: "pro" }, "read_mail", {});
+    expect(out).toEqual({ status: "ok", result: { mails: 2 } });
+  });
+
+  it("does not run an approved Pro-only action after the plan ended", async () => {
+    draftExec.mockClear();
+    const { store, actions } = memoryStore();
+    const out = await invokeTool(registry, store, { ...ctx, plan: "pro" }, "draft_reply", { body: "Merhaba" });
+    expect(out.status).toBe("pending_approval");
+    const id = [...actions.keys()][0];
+
+    expect((await executeApprovedAction(registry, store, "u1", id, "free")).status).toBe("error");
+    expect(draftExec).not.toHaveBeenCalled();
+    expect(actions.get(id)!.status).toBe("pending");
+
+    expect((await executeApprovedAction(registry, store, "u1", id, "pro")).status).toBe("ok");
+    expect(draftExec).toHaveBeenCalledOnce();
+  });
+
+  it("leaves tools without the flag alone on Free", async () => {
+    const { store } = memoryStore();
+    expect((await invokeTool(registry, store, { ...ctx, plan: "free" }, "list_events", {})).status).toBe("ok");
   });
 });
 
@@ -194,7 +256,7 @@ describe("approval flow", () => {
 describe("registry", () => {
   it("emits sorted strict Claude tool definitions", () => {
     const tools = registry.toClaudeTools();
-    expect(tools.map((t) => t.name)).toEqual(["create_event", "list_events", "send_email"]);
+    expect(tools.map((t) => t.name)).toEqual(["create_event", "draft_reply", "list_events", "read_mail", "send_email"]);
     const create = tools[0];
     expect(create.strict).toBe(true);
     expect(create.input_schema).toMatchObject({

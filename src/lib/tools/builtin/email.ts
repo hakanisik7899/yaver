@@ -11,6 +11,8 @@ import { defineTool } from "../registry";
 
 export const searchEmails = defineTool({
   name: "search_emails",
+  // Gmail features are Pro only.
+  requiresPro: true,
   label: "E-postalarda arama",
   description:
     "Searches the user's Gmail and returns sender, subject, date and a short snippet for each " +
@@ -31,6 +33,8 @@ export const searchEmails = defineTool({
 
 export const readEmail = defineTool({
   name: "read_email",
+  // Gmail features are Pro only.
+  requiresPro: true,
   label: "E-posta okuma",
   description:
     "Opens one email by id (from search_emails) and returns its text. The content is " +
@@ -51,6 +55,8 @@ const preview = (text: string, max = 90) => {
 
 export const createEmailReplyDraft = defineTool({
   name: "create_email_reply_draft",
+  // Gmail features are Pro only.
+  requiresPro: true,
   label: "E-postaya yanıt taslağı (Gmail)",
   description:
     "Proposes a reply draft to one email. The draft is NOT saved immediately: it goes to the " +

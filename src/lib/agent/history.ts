@@ -6,6 +6,8 @@ export interface DisplayTurn {
   text: string;
   tools: string[];
   error?: string;
+  /** The error is the daily plan limit (shows a link to the plan page). */
+  limit?: boolean;
 }
 
 interface StoredMessage {

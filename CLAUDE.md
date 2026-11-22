@@ -7,7 +7,7 @@ AI personal assistant layer for busy professionals in Turkey. The user states a 
 ## Product rules
 - UI copy is Turkish. Code, comments and identifiers are English.
 - **Reads are free, writes need approval.** Any action that changes external state (calendar event, email, payment) is inserted into `pending_actions` and executed only after the user approves it.
-- Freemium + Pro subscription.
+- Freemium + Pro subscription. Plans in [src/lib/plans/](src/lib/plans/) (`user_plans`, `usage_daily`, migration 0009): Free 15 messages + 2 web searches/day, Pro 150 + 20 (Türkiye day). Gmail tools (`requiresPro: true`, enforced in `invokeTool` and `executeApprovedAction`) and notifications are Pro only. A message is taken before the model call and given back if the turn fails; web searches are counted from `server_tool_use` blocks (max_uses is not a hard cap). No payments yet: Pro is assigned by hand in SQL.
 
 ## Tool Layer (core rule)
 The model never touches the database or external services directly. Every tool call goes through `invokeTool()` in [src/lib/tools/executor.ts](src/lib/tools/executor.ts):

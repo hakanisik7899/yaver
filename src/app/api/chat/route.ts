@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { runAgentTurn, type AgentEvent } from "@/lib/agent/run";
 import { GoogleNotConnectedError } from "@/lib/google/oauth";
+import { PLAN_LIMITS } from "@/lib/plans/plans";
+import { addUsage, consumeMessage, getPlan, getUsageToday } from "@/lib/plans/usage";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 120;
@@ -46,6 +48,23 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return Response.json({ error: "invalid_body" }, { status: 400 });
   const { message } = parsed.data;
 
+  // Daily allowance: taken before any model call, given back if the turn fails.
+  const plan = await getPlan(userId);
+  const allowance = await consumeMessage(userId, plan);
+  if (!allowance.ok) {
+    const limit = PLAN_LIMITS[plan].messages;
+    return Response.json(
+      {
+        error: "limit_reached",
+        message:
+          plan === "pro"
+            ? `Bugünkü ${limit} mesaj hakkını kullandın. Yarın sabah yenilenecek.`
+            : `Ücretsiz planda günde ${limit} mesaj hakkın var ve bugün hepsini kullandın. Yarın yenilenecek; daha fazlası için Planım sayfasına bakabilirsin.`,
+      },
+      { status: 429 },
+    );
+  }
+
   // Resolve or create the conversation (RLS guarantees ownership).
   let conversationId = parsed.data.conversationId;
   let history: Anthropic.Beta.BetaMessageParam[] = [];
@@ -55,14 +74,20 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("id", conversationId)
       .maybeSingle();
-    if (!conv) return Response.json({ error: "not_found" }, { status: 404 });
+    if (!conv) {
+      await addUsage(userId, { messages: -1 });
+      return Response.json({ error: "not_found" }, { status: 404 });
+    }
 
     const { data: rows, error } = await supabase
       .from("ai_messages")
       .select("role, content")
       .eq("conversation_id", conversationId)
       .order("id");
-    if (error) return Response.json({ error: "load_failed" }, { status: 500 });
+    if (error) {
+      await addUsage(userId, { messages: -1 });
+      return Response.json({ error: "load_failed" }, { status: 500 });
+    }
     history = rows as Anthropic.Beta.BetaMessageParam[];
   } else {
     const { data: conv, error } = await supabase
@@ -70,7 +95,10 @@ export async function POST(request: NextRequest) {
       .insert({ user_id: userId, title: message.slice(0, 80) })
       .select("id")
       .single();
-    if (error) return Response.json({ error: "create_failed" }, { status: 500 });
+    if (error) {
+      await addUsage(userId, { messages: -1 });
+      return Response.json({ error: "create_failed" }, { status: 500 });
+    }
     conversationId = conv.id as string;
   }
   const convId = conversationId;
@@ -89,6 +117,8 @@ export async function POST(request: NextRequest) {
           history,
           userText: message,
           onEvent: send,
+          plan,
+          webSearchesUsedToday: (await getUsageToday(userId)).webSearches,
         });
 
         // Persist only complete turns so stored history always replays.
@@ -110,6 +140,8 @@ export async function POST(request: NextRequest) {
         send({ type: "done" });
       } catch (err) {
         console.error("chat turn failed", err);
+        // A failed answer does not count against the daily allowance.
+        await addUsage(userId, { messages: -1 });
         send({ type: "error", message: userFacingError(err) });
       } finally {
         controller.close();

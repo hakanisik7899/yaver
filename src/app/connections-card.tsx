@@ -1,3 +1,4 @@
+import { getPlan } from "@/lib/plans/usage";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { decide } from "@/lib/tools/policy";
 import type { PermissionMode } from "@/lib/tools/types";
@@ -18,10 +19,11 @@ export async function ConnectionsCard() {
   const userId = auth?.claims?.sub;
   if (!userId) return null;
 
-  const [{ data: google }, { data: perms }] = await Promise.all([
+  const [{ data: google }, { data: perms }, plan] = await Promise.all([
     // Refresh tokens are server-only; read just the scope label.
     createAdminClient().from("google_connections").select("scopes").eq("user_id", userId).maybeSingle(),
     supabase.from("tool_permissions").select("tool_name, mode"),
+    getPlan(userId),
   ]);
   const scopes = google?.scopes ?? "";
   const mode = new Map((perms ?? []).map((p) => [p.tool_name as string, p.mode as PermissionMode]));
@@ -29,7 +31,7 @@ export async function ConnectionsCard() {
 
   const items: Connection[] = [
     { name: "Google Takvim", short: "Takvim", detail: "okuma · onaylı ekleme", on: !!google && readOn("list_calendar_events"), icon: "📅" },
-    { name: "Gmail", short: "Gmail", detail: scopes.includes("gmail.compose") ? "okuma · onaylı yanıt taslağı" : "okuma", on: scopes.includes("gmail") && readOn("search_emails"), icon: "✉️" },
+    { name: "Gmail", short: "Gmail", detail: plan !== "pro" ? "Pro planda" : scopes.includes("gmail.compose") ? "okuma · onaylı yanıt taslağı" : "okuma", on: plan === "pro" && scopes.includes("gmail") && readOn("search_emails"), icon: "✉️" },
     { name: "Web araması", short: "Web", detail: "etkinlik, mekan, bilgi", on: readOn("web_search"), icon: "🔎" },
     { name: "Hava durumu", short: "Hava", detail: "Open-Meteo", on: readOn("get_weather_forecast"), icon: "⛅" },
   ];

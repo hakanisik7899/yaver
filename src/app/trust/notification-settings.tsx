@@ -112,7 +112,9 @@ export function NotificationSettings({
           ? "Deneme bildirimi gönderildi; birkaç saniye içinde gelmeli."
           : res.result === "no_devices"
             ? "Kayıtlı cihaz yok. Önce bildirimleri aç."
-            : "Gönderilemedi.",
+            : res.result === "pro_only"
+              ? "Bildirimler Pro planda."
+              : "Gönderilemedi.",
       );
     });
   }

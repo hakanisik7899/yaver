@@ -2,6 +2,7 @@ import "server-only";
 import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { listEvents } from "@/lib/google/calendar";
 import { GoogleNotConnectedError } from "@/lib/google/oauth";
+import { getPlan } from "@/lib/plans/usage";
 import { createAdminClient } from "@/lib/supabase/server";
 import { dueLabel, formatMoney } from "@/lib/bills/format";
 import { addDays, formatTime, nextDayStart, todayLocal } from "@/lib/time";
@@ -64,6 +65,8 @@ async function allowedReads(userId: string) {
 }
 
 async function checkUser(userId: string, now: Date): Promise<SendResult[]> {
+  // Proactive notifications are a Pro feature.
+  if ((await getPlan(userId)) !== "pro") return [];
   const prefs = await getPrefs(userId);
   const time = localTimeHHMM(now);
   const today = todayLocal();

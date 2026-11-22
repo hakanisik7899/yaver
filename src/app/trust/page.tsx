@@ -9,6 +9,7 @@ import type { PermissionMode } from "@/lib/tools/types";
 import { AppShell } from "../app-shell";
 import { DisconnectGoogleButton, PermissionControl } from "./controls";
 import { NotificationSettings } from "./notification-settings";
+import { getPlan } from "@/lib/plans/usage";
 import { normalizePrefs } from "@/lib/notifications/rules";
 
 export const metadata = { title: "Güven Merkezi · Yaver" };
@@ -72,7 +73,18 @@ async function Connections() {
 }
 
 async function Notifications() {
-  const { supabase } = await currentUserId();
+  const { supabase, userId } = await currentUserId();
+  if (!userId) return null;
+  if ((await getPlan(userId)) !== "pro") {
+    return (
+      <p className="text-sm text-[var(--muted)]">
+        Toplantı, sabah özeti, gecikmiş görev ve fatura bildirimleri Pro planda.{" "}
+        <Link href="/plan" className="text-[var(--accent-2)] hover:underline">
+          Planım →
+        </Link>
+      </p>
+    );
+  }
   const [{ data: prefs }, { count }] = await Promise.all([
     supabase
       .from("notification_prefs")

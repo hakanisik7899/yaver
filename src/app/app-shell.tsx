@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
+import { PLAN_LABEL } from "@/lib/plans/plans";
+import { getPlan } from "@/lib/plans/usage";
 import { createClient } from "@/lib/supabase/server";
 
-type NavKey = "home" | "history" | "trust";
+type NavKey = "home" | "history" | "trust" | "plan";
 
 const NAV: { key: NavKey; href: string; label: string; icon: ReactNode }[] = [
   {
@@ -33,6 +35,12 @@ const NAV: { key: NavKey; href: string; label: string; icon: ReactNode }[] = [
       </>
     ),
   },
+  {
+    key: "plan",
+    href: "/plan",
+    label: "Planım",
+    icon: <path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" />,
+  },
 ];
 
 function NavIcon({ children }: { children: ReactNode }) {
@@ -49,6 +57,7 @@ async function UserCard() {
   const meta = (data?.claims?.user_metadata ?? {}) as { full_name?: string; avatar_url?: string; picture?: string };
   const name = meta.full_name ?? "Yaver kullanıcısı";
   const avatar = meta.avatar_url ?? meta.picture;
+  const plan = data?.claims?.sub ? await getPlan(data.claims.sub) : "free";
   return (
     <div className="flex flex-col items-center gap-2 2xl:flex-row 2xl:gap-3">
       {avatar ? (
@@ -61,6 +70,17 @@ async function UserCard() {
       )}
       <div className="min-w-0 text-center 2xl:text-left">
         <p className="hidden truncate text-sm font-medium 2xl:block">{name}</p>
+        <Link
+          href="/plan"
+          title="Planım"
+          className={`mt-0.5 inline-block rounded-full px-2 py-px text-[0.65rem] font-medium ${
+            plan === "pro"
+              ? "bg-gradient-to-r from-[var(--accent)] to-[var(--accent-2)] text-white"
+              : "border border-[var(--border-strong)] text-[var(--muted)]"
+          }`}
+        >
+          {PLAN_LABEL[plan]}
+        </Link>
         <form action="/auth/signout" method="post">
           <button title="Çıkış yap" className="text-xs text-[var(--muted)] hover:text-[var(--fg)]">
             <span className="2xl:hidden">Çıkış</span>

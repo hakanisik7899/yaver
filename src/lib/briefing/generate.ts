@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import type { Task } from "@/lib/tasks/types";
 import { USER_TZ, addDays, todayLocal } from "@/lib/time";
 import { invokeTool, registry } from "@/lib/tools";
+import type { ToolOutcome } from "@/lib/tools/types";
+import { getPlan } from "@/lib/plans/usage";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
 
 const MODEL = "claude-opus-5-5";
@@ -98,13 +100,17 @@ export async function getOrCreateBriefing(
   }
 
   const store = createSupabaseActionStore();
-  const ctx = { userId, agent: "briefing" };
+  const plan = await getPlan(userId);
+  const ctx = { userId, agent: "briefing", plan };
+  const noBills: ToolOutcome = { status: "denied", reason: "free plan" };
   const [eventsOut, slotsOut, tasksOut, billsOut, pending] = await Promise.all([
     invokeTool(registry, store, ctx, "list_calendar_events", { start_date: date, end_date: date }),
     invokeTool(registry, store, ctx, "find_free_slots", { date, min_minutes: 30 }),
     invokeTool(registry, store, ctx, "list_tasks", { status: "open", due_on_or_before: date }),
-    // Also runs today's bill scan if it has not run yet.
-    invokeTool(registry, store, ctx, "list_bills", { status: "unpaid", due_on_or_before: addDays(date, 7) }),
+    // Bills come from Gmail (Pro only). Also runs today's bill scan if it has not run yet.
+    plan === "pro"
+      ? invokeTool(registry, store, ctx, "list_bills", { status: "unpaid", due_on_or_before: addDays(date, 7) })
+      : Promise.resolve(noBills),
     db
       .from("pending_actions")
       .select("id", { count: "exact", head: true })

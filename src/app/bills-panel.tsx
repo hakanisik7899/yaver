@@ -1,4 +1,6 @@
 import { dueLabel, formatMoney } from "@/lib/bills/format";
+import Link from "next/link";
+import { getPlan } from "@/lib/plans/usage";
 import { createClient } from "@/lib/supabase/server";
 import { todayLocal } from "@/lib/time";
 import { MarkBillPaidButton } from "./bill-controls";
@@ -16,6 +18,19 @@ const CATEGORY_ICON: Record<string, string> = {
 
 export async function BillsPanel() {
   const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getClaims();
+  const userId = auth?.claims?.sub;
+  if (!userId) return null;
+  if ((await getPlan(userId)) !== "pro") {
+    return (
+      <p className="text-sm text-[var(--muted)]">
+        Fatura takibi Pro planda: Yaver fatura e-postalarını her sabah tarar, son ödeme günü yaklaşınca haber verir.{" "}
+        <Link href="/plan" className="text-[var(--accent-2)] hover:underline">
+          Planım →
+        </Link>
+      </p>
+    );
+  }
   const { data } = await supabase
     .from("bills")
     .select("id, provider, category, amount, currency, due_date")

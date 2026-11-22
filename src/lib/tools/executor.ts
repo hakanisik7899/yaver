@@ -1,3 +1,4 @@
+import { PRO_ONLY_REASON, type Plan } from "../plans/plans";
 import { decide } from "./policy";
 import type { ToolRegistry } from "./registry";
 import type { ActionStore } from "./store";
@@ -37,6 +38,11 @@ export async function invokeTool(
     reversible: tool.reversible ?? false,
     conversationId: ctx.conversationId,
   };
+
+  if (tool.requiresPro && ctx.plan !== "pro") {
+    await store.audit({ ...base, event: "denied", level: null, approvedByUser: false, error: "requires pro plan" });
+    return { status: "denied", reason: PRO_ONLY_REASON };
+  }
 
   const mode = await store.getPermissionMode(ctx.userId, toolName);
   const decision = decide(tool, mode);
@@ -90,6 +96,7 @@ export async function executeApprovedAction(
   store: ActionStore,
   userId: string,
   actionId: string,
+  plan?: Plan,
 ): Promise<ToolOutcome> {
   const action = await store.getPendingAction(actionId);
   if (!action || action.userId !== userId) {
@@ -116,6 +123,11 @@ export async function executeApprovedAction(
     return { status: "error", message: `Bilinmeyen araç: ${action.toolName}` };
   }
 
+  // The plan may have ended since the action was proposed.
+  if (tool.requiresPro && plan !== "pro") {
+    return { status: "error", message: PRO_ONLY_REASON };
+  }
+
   // Re-validate: the payload sat in the database and the schema may have
   // changed since it was proposed.
   const parsed = tool.input.safeParse(action.payload);
@@ -134,7 +146,7 @@ export async function executeApprovedAction(
 
   try {
     const result = await tool.execute(
-      { userId, agent: action.agent, conversationId: action.conversationId },
+      { userId, agent: action.agent, conversationId: action.conversationId, plan },
       parsed.data,
     );
     await store.setPendingActionStatus(actionId, "executed");

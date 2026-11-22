@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { Plan } from "../plans/plans";
 
 /**
  * Trust Center permission levels.
@@ -24,6 +25,8 @@ export interface ToolContext {
   /** Which agent is acting, e.g. "core", "calendar", "research". */
   agent: string;
   conversationId?: string;
+  /** The user's plan; Pro-only tools are denied unless this is "pro". */
+  plan?: Plan;
 }
 
 export interface ToolDefinition<TSchema extends z.ZodObject = z.ZodObject> {
@@ -45,6 +48,8 @@ export interface ToolDefinition<TSchema extends z.ZodObject = z.ZodObject> {
    * Never set this on tools that change external services.
    */
   autoByDefault?: boolean;
+  /** Only on the Pro plan (e.g. Gmail). Denied for Free users, whatever the Trust Center says. */
+  requiresPro?: boolean;
   /** Whether the effect can be undone; recorded in the audit log. */
   reversible?: boolean;
   input: TSchema;

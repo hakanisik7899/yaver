@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { DisplayTurn as Turn } from "@/lib/agent/history";
@@ -198,6 +199,16 @@ export function Chat({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId: conversationId.current, message }),
       });
+      if (res.status === 429) {
+        // Daily limit reached: the server explains it in Turkish.
+        const { message: limitMessage } = (await res.json().catch(() => ({}))) as { message?: string };
+        const text = limitMessage ?? "Bugünkü mesaj hakkın doldu.";
+        updateLast((t) => ({ ...t, error: text, limit: true }));
+        // Say it once, then stop listening: every further try would fail too.
+        if (handsFreeRef.current) stopHandsFree(text);
+        else if (speak) voice.feed(text + " ");
+        return;
+      }
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
 
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -379,7 +390,17 @@ export function Chat({
                         </p>
                       )
                     )}
-                    {t.error && <p className="text-sm text-red-400">{t.error}</p>}
+                    {t.error &&
+                      (t.limit ? (
+                        <p className="glass rounded-2xl px-4 py-3 text-sm">
+                          {t.error}{" "}
+                          <Link href="/plan" className="font-medium text-[var(--accent-2)] hover:underline">
+                            Planım →
+                          </Link>
+                        </p>
+                      ) : (
+                        <p className="text-sm text-red-400">{t.error}</p>
+                      ))}
                   </div>
                 </div>
               ),

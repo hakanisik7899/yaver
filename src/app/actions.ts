@@ -8,6 +8,7 @@ import { shortPlaceLabel } from "@/lib/weather/pick-place";
 import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { notifyUser } from "@/lib/notifications/send";
+import { getPlan } from "@/lib/plans/usage";
 import { executeApprovedAction, rejectAction, registry } from "@/lib/tools";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
 import { allowedModes, defaultMode } from "@/lib/tools/policy";
@@ -100,6 +101,7 @@ export async function removePushSubscription(endpoint: string) {
 
 export async function sendTestNotification() {
   const userId = await currentUserId();
+  if ((await getPlan(userId)) !== "pro") return { ok: false, result: "pro_only" as const };
   const result = await notifyUser(
     userId,
     {
@@ -138,7 +140,13 @@ export async function saveNotificationPrefs(input: unknown) {
 
 export async function approveAction(actionId: string) {
   const userId = await currentUserId();
-  const outcome = await executeApprovedAction(registry, createSupabaseActionStore(), userId, actionId);
+  const outcome = await executeApprovedAction(
+    registry,
+    createSupabaseActionStore(),
+    userId,
+    actionId,
+    await getPlan(userId),
+  );
   revalidatePath("/");
   return outcome.status === "ok"
     ? { ok: true as const }

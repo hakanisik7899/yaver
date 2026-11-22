@@ -1,5 +1,8 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import type { Plan } from "@/lib/plans/plans";
+import { webSearchAllowance } from "@/lib/plans/plans";
+import { addUsage } from "@/lib/plans/usage";
 import { invokeTool, registry } from "@/lib/tools";
 import { decide } from "@/lib/tools/policy";
 import { getServerTool, SERVER_TOOLS } from "@/lib/tools/server-tools";
@@ -29,6 +32,9 @@ export interface AgentTurnInput {
   history: Anthropic.Beta.BetaMessageParam[];
   userText: string;
   onEvent: (e: AgentEvent) => void;
+  plan: Plan;
+  /** Web searches already used today (counted against the plan's daily limit). */
+  webSearchesUsedToday: number;
 }
 
 /** Server tools the user has not switched off in the Trust Center. */
@@ -40,6 +46,22 @@ async function enabledServerTools(store: ActionStore, userId: string): Promise<A
   }
   return enabled;
 }
+
+/**
+ * Applies the plan's daily web search allowance to one request: the tool is
+ * left out once today's searches are used up (like a Trust Center switch),
+ * otherwise max_uses is capped at what is left. max_uses is not a hard cap
+ * at the API, so actual uses are counted afterwards.
+ */
+function withSearchAllowance(tools: Anthropic.Beta.BetaToolUnion[], allowance: number): Anthropic.Beta.BetaToolUnion[] {
+  return tools.flatMap((t) => {
+    if (!("name" in t) || t.name !== "web_search") return [t];
+    return allowance > 0 ? [{ ...t, max_uses: allowance } as Anthropic.Beta.BetaToolUnion] : [];
+  });
+}
+
+const countWebSearches = (content: Anthropic.Beta.BetaContentBlock[]) =>
+  content.filter((b) => b.type === "server_tool_use" && b.name === "web_search").length;
 
 /**
  * Server tools run at Anthropic, outside invokeTool(); record each use in
@@ -88,15 +110,19 @@ export async function runAgentTurn({
   history,
   userText,
   onEvent,
+  plan,
+  webSearchesUsedToday,
 }: AgentTurnInput): Promise<Anthropic.Beta.BetaMessageParam[]> {
   const store = createSupabaseActionStore();
-  const tools: Anthropic.Beta.BetaToolUnion[] = [
+  const baseTools: Anthropic.Beta.BetaToolUnion[] = [
     ...registry.toClaudeTools(),
     ...(await enabledServerTools(store, userId)),
   ];
+  let searchesUsed = webSearchesUsedToday;
   const added: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: userText }];
 
   for (let step = 0; step < MAX_STEPS; step++) {
+    const tools = withSearchAllowance(baseTools, webSearchAllowance(plan, searchesUsed));
     const stream = client.beta.messages.stream({
       model: MODEL,
       max_tokens: MAX_TOKENS,
@@ -137,6 +163,11 @@ export async function runAgentTurn({
 
     added.push({ role: "assistant", content: message.content });
     await auditServerToolUses(store, userId, conversationId, message.content, onEvent);
+    const searches = countWebSearches(message.content);
+    if (searches > 0) {
+      searchesUsed += searches;
+      await addUsage(userId, { webSearches: searches });
+    }
 
     if (message.stop_reason === "pause_turn") continue;
     if (toolUses.length === 0) return added;
@@ -147,7 +178,7 @@ export async function runAgentTurn({
         const outcome = await invokeTool(
           registry,
           store,
-          { userId, agent: "core", conversationId },
+          { userId, agent: "core", conversationId, plan },
           use.name,
           use.input,
         );
