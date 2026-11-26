@@ -42,6 +42,7 @@ const NAV: NavItem[] = [
     key: "trust",
     href: "/trust",
     label: "Güven Merkezi",
+    short: "Güven",
     icon: (
       <>
         <path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z" />
@@ -65,7 +66,8 @@ function NavIcon({ children }: { children: ReactNode }) {
   );
 }
 
-type NavItem = { key: NavKey; href: string; label: string; icon: ReactNode };
+/** `short` is the phone tab label when `label` is too long to fit. */
+type NavItem = { key: NavKey; href: string; label: string; short?: string; icon: ReactNode };
 
 function RailLink({ item, active }: { item: NavItem; active: boolean }) {
   return (
@@ -90,10 +92,13 @@ function PhoneLink({ item, active }: { item: NavItem; active: boolean }) {
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      aria-label={item.label}
-      className={`rounded-xl p-2 ${active ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)]"}`}
+      title={item.label}
+      className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[0.7rem] leading-tight ${
+        active ? "bg-[var(--accent-soft)] font-medium text-white" : "text-[var(--muted)]"
+      }`}
     >
       <NavIcon>{item.icon}</NavIcon>
+      <span className="max-w-full truncate">{item.short ?? item.label}</span>
     </Link>
   );
 }
@@ -183,27 +188,34 @@ export function AppShell({ active, children }: { active: NavKey; children: React
 
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         {/* Phone top bar */}
-        <header className="glass rise flex items-center justify-between gap-3 rounded-2xl px-3 py-2 lg:hidden">
-          <Link href="/" className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element -- static SVG icon */}
-            <img src="/icon.svg" alt="" width={28} height={28} className="rounded-lg" />
-            <span className="font-display text-lg font-semibold max-[420px]:hidden">Yaver</span>
-          </Link>
-          <nav className="flex items-center gap-1">
+        <header className="glass rise flex flex-col gap-1.5 rounded-2xl px-2 py-2 lg:hidden">
+          {/* Row 1: brand + account actions */}
+          <div className="flex items-center justify-between gap-2 px-1">
+            <Link href="/" className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element -- static SVG icon */}
+              <img src="/icon.svg" alt="" width={28} height={28} className="rounded-lg" />
+              <span className="font-display text-lg font-semibold">Yaver</span>
+            </Link>
+            <div className="flex items-center gap-1">
+              <FeedbackButton variant="phone" />
+              <form action="/auth/signout" method="post">
+                <button className="flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-xs text-[var(--muted)]">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
+                  </svg>
+                  Çıkış
+                </button>
+              </form>
+            </div>
+          </div>
+          {/* Row 2: navigation tabs, icon above label so first-time users can read them */}
+          <nav className="flex items-stretch gap-1 border-t border-[var(--border)] pt-1.5">
             {NAV.map((n) => (
               <PhoneLink key={n.key} item={n} active={active === n.key} />
             ))}
             <Suspense fallback={null}>
               <AdminLink variant="phone" active={active === "admin"} />
             </Suspense>
-            <FeedbackButton variant="phone" />
-            <form action="/auth/signout" method="post">
-              <button aria-label="Çıkış yap" className="rounded-xl p-2 text-[var(--muted)]">
-                <NavIcon>
-                  <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
-                </NavIcon>
-              </button>
-            </form>
           </nav>
         </header>
         {children}

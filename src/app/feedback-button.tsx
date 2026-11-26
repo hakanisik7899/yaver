@@ -10,9 +10,9 @@ const KINDS = [
   { value: "other", label: "💬 Diğer" },
 ] as const;
 
-function Icon() {
+function Icon({ size = 20 }: { size?: number }) {
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M4 5h16v11H9l-5 4z" />
       <path d="M8 9h8M8 12h5" />
     </svg>
@@ -46,8 +46,9 @@ export function FeedbackButton({ variant }: { variant: "rail" | "phone" }) {
           <span className="hidden 2xl:inline">Geri bildirim</span>
         </button>
       ) : (
-        <button onClick={() => setOpen(true)} aria-label="Geri bildirim" className="rounded-xl p-2 text-[var(--muted)]">
-          <Icon />
+        <button onClick={() => setOpen(true)} className="flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-xs text-[var(--muted)]">
+          <Icon size={16} />
+          Geri bildirim
         </button>
       )}
 
