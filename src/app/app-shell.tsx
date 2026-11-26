@@ -3,10 +3,23 @@ import { Suspense, type ReactNode } from "react";
 import { PLAN_LABEL } from "@/lib/plans/plans";
 import { getPlan } from "@/lib/plans/usage";
 import { createClient } from "@/lib/supabase/server";
+import { ConnectionBanner } from "./connection-banner";
+import { currentAdminId } from "@/lib/admin/server";
 
-type NavKey = "home" | "history" | "trust" | "plan";
+type NavKey = "home" | "history" | "trust" | "plan" | "admin";
 
-const NAV: { key: NavKey; href: string; label: string; icon: ReactNode }[] = [
+const ADMIN_NAV = {
+  key: "admin" as const,
+  href: "/admin",
+  label: "Yönetim",
+  icon: (
+    <>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </>
+  ),
+};
+
+const NAV: NavItem[] = [
   {
     key: "home",
     href: "/",
@@ -49,6 +62,45 @@ function NavIcon({ children }: { children: ReactNode }) {
       {children}
     </svg>
   );
+}
+
+type NavItem = { key: NavKey; href: string; label: string; icon: ReactNode };
+
+function RailLink({ item, active }: { item: NavItem; active: boolean }) {
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      title={item.label}
+      className={`flex items-center justify-center gap-3 rounded-2xl px-3 py-3 text-[0.95rem] transition 2xl:justify-start 2xl:px-3.5 ${
+        active
+          ? "bg-gradient-to-r from-[var(--accent)]/35 to-[var(--accent)]/10 font-medium text-white shadow-[inset_0_0_0_1px_var(--border-strong)]"
+          : "text-[var(--muted)] hover:bg-[var(--chip)] hover:text-[var(--fg)]"
+      }`}
+    >
+      <NavIcon>{item.icon}</NavIcon>
+      <span className="hidden 2xl:inline">{item.label}</span>
+    </Link>
+  );
+}
+
+function PhoneLink({ item, active }: { item: NavItem; active: boolean }) {
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      aria-label={item.label}
+      className={`rounded-xl p-2 ${active ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)]"}`}
+    >
+      <NavIcon>{item.icon}</NavIcon>
+    </Link>
+  );
+}
+
+/** "Yönetim" appears only for addresses in ADMIN_EMAILS. */
+async function AdminLink({ variant, active }: { variant: "rail" | "phone"; active: boolean }) {
+  if (!(await currentAdminId())) return null;
+  return variant === "rail" ? <RailLink item={ADMIN_NAV} active={active} /> : <PhoneLink item={ADMIN_NAV} active={active} />;
 }
 
 async function UserCard() {
@@ -99,6 +151,9 @@ async function UserCard() {
 export function AppShell({ active, children }: { active: NavKey; children: ReactNode }) {
   return (
     <div className="mx-auto flex w-full max-w-[1880px] flex-1 gap-5 p-3 sm:p-5">
+      <Suspense fallback={null}>
+        <ConnectionBanner />
+      </Suspense>
       {/* Desktop rail */}
       <aside className="glass rise sticky top-5 hidden h-[calc(100dvh-2.5rem)] w-[76px] shrink-0 flex-col rounded-3xl p-3 lg:flex 2xl:w-60 2xl:p-4">
         <Link href="/" className="mb-6 flex items-center justify-center gap-2.5 pt-1 2xl:justify-start 2xl:px-2">
@@ -109,21 +164,11 @@ export function AppShell({ active, children }: { active: NavKey; children: React
         </Link>
         <nav className="flex flex-col gap-1">
           {NAV.map((n) => (
-            <Link
-              key={n.key}
-              href={n.href}
-              aria-current={active === n.key ? "page" : undefined}
-              title={n.label}
-              className={`flex items-center justify-center gap-3 rounded-2xl px-3 py-3 text-[0.95rem] transition 2xl:justify-start 2xl:px-3.5 ${
-                active === n.key
-                  ? "bg-gradient-to-r from-[var(--accent)]/35 to-[var(--accent)]/10 font-medium text-white shadow-[inset_0_0_0_1px_var(--border-strong)]"
-                  : "text-[var(--muted)] hover:bg-[var(--chip)] hover:text-[var(--fg)]"
-              }`}
-            >
-              <NavIcon>{n.icon}</NavIcon>
-              <span className="hidden 2xl:inline">{n.label}</span>
-            </Link>
+            <RailLink key={n.key} item={n} active={active === n.key} />
           ))}
+          <Suspense fallback={null}>
+            <AdminLink variant="rail" active={active === "admin"} />
+          </Suspense>
         </nav>
         <div className="mt-auto border-t border-[var(--border)] pt-4">
           <Suspense fallback={<div className="h-10" />}>
@@ -142,16 +187,11 @@ export function AppShell({ active, children }: { active: NavKey; children: React
           </Link>
           <nav className="flex items-center gap-1">
             {NAV.map((n) => (
-              <Link
-                key={n.key}
-                href={n.href}
-                aria-current={active === n.key ? "page" : undefined}
-                aria-label={n.label}
-                className={`rounded-xl p-2 ${active === n.key ? "bg-[var(--accent-soft)] text-white" : "text-[var(--muted)]"}`}
-              >
-                <NavIcon>{n.icon}</NavIcon>
-              </Link>
+              <PhoneLink key={n.key} item={n} active={active === n.key} />
             ))}
+            <Suspense fallback={null}>
+              <AdminLink variant="phone" active={active === "admin"} />
+            </Suspense>
             <form action="/auth/signout" method="post">
               <button aria-label="Çıkış yap" className="rounded-xl p-2 text-[var(--muted)]">
                 <NavIcon>

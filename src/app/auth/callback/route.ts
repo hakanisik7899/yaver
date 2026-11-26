@@ -22,14 +22,18 @@ export async function GET(request: NextRequest) {
   const refreshToken = data.session.provider_refresh_token;
   if (refreshToken) {
     const admin = createAdminClient();
-    const { error: saveError } = await admin
-      .from("google_connections")
-      .upsert({
-        user_id: data.session.user.id,
-        refresh_token: refreshToken,
-        scopes: GOOGLE_SCOPES_LABEL,
-        updated_at: new Date().toISOString(),
-      });
+    const row = {
+      user_id: data.session.user.id,
+      refresh_token: refreshToken,
+      scopes: GOOGLE_SCOPES_LABEL,
+      updated_at: new Date().toISOString(),
+    };
+    // A fresh token: any earlier "connection broken" state is over.
+    let { error: saveError } = await admin.from("google_connections").upsert({ ...row, broken_at: null });
+    if (saveError?.code === "PGRST204") {
+      // broken_at column missing (migration 0010 not run yet): save the token anyway.
+      ({ error: saveError } = await admin.from("google_connections").upsert(row));
+    }
     if (saveError) {
       console.error("Failed to store Google refresh token", saveError);
     }

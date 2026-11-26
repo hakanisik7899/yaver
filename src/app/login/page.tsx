@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { GOOGLE_SCOPES } from "@/lib/google/scopes";
+import { startGoogleSignIn } from "@/lib/google/sign-in";
 import { YaverOrb } from "../yaver-orb";
 
 export default function LoginPage() {
@@ -13,17 +12,7 @@ export default function LoginPage() {
   async function signInWithGoogle() {
     setLoading(true);
     setError(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: GOOGLE_SCOPES,
-        // offline + consent => Google returns a refresh token so Yaver
-        // can read the calendar for the morning summary.
-        queryParams: { access_type: "offline", prompt: "consent" },
-      },
-    });
+    const { error } = await startGoogleSignIn();
     if (error) {
       setError("Giriş başlatılamadı. Lütfen tekrar deneyin.");
       setLoading(false);

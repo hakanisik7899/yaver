@@ -1,7 +1,7 @@
 import "server-only";
 import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { listEvents } from "@/lib/google/calendar";
-import { GoogleNotConnectedError } from "@/lib/google/oauth";
+import { getConnectionHealth, GoogleNotConnectedError } from "@/lib/google/oauth";
 import { getPlan } from "@/lib/plans/usage";
 import { createAdminClient } from "@/lib/supabase/server";
 import { dueLabel, formatMoney } from "@/lib/bills/format";
@@ -67,14 +67,30 @@ async function allowedReads(userId: string) {
 async function checkUser(userId: string, now: Date): Promise<SendResult[]> {
   // Proactive notifications are a Pro feature.
   if ((await getPlan(userId)) !== "pro") return [];
+
+  // Google rejected the token: one notice per break (daytime); the checks
+  // that need Google are skipped until the user reconnects.
+  const health = await getConnectionHealth(userId);
+  const googleOk = !health.brokenAt;
   const prefs = await getPrefs(userId);
   const time = localTimeHHMM(now);
   const today = todayLocal();
   const reads = await allowedReads(userId);
   const results: SendResult[] = [];
 
-  if (prefs.meetings && reads.calendar) results.push(...(await meetingReminders(userId, now, today, prefs)));
-  if (prefs.briefing && reads.calendar && inMorningWindow(time, prefs)) {
+  if (!googleOk && inDaytime(time)) {
+    results.push(
+      await notifyUser(userId, {
+        kind: "connection",
+        refKey: health.brokenAt!,
+        title: "Google bağlantın koptu",
+        body: "Takvim ve e-postalarını okuyamıyorum. Yaver'i açıp \"Yeniden bağlan\"a dokunman yeterli.",
+        url: "/",
+      }),
+    );
+  }
+  if (googleOk && prefs.meetings && reads.calendar) results.push(...(await meetingReminders(userId, now, today, prefs)));
+  if (googleOk && prefs.briefing && reads.calendar && inMorningWindow(time, prefs)) {
     results.push(await briefingReady(userId, today, prefs));
   }
   if (prefs.overdue_tasks && reads.tasks && inDaytime(time)) {

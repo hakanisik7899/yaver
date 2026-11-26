@@ -38,6 +38,35 @@ export async function disconnectGoogle(userId: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Records that the stored token stopped working (first time only); the UI then asks to reconnect. */
+async function markConnectionBroken(userId: string) {
+  cache.delete(userId);
+  const { error } = await createAdminClient()
+    .from("google_connections")
+    .update({ broken_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .is("broken_at", null);
+  if (error) console.error("markConnectionBroken failed", error);
+}
+
+export interface ConnectionHealth {
+  /** No stored connection at all (never connected, or disconnected). */
+  missing: boolean;
+  /** Google rejected the stored token at this time. */
+  brokenAt: string | null;
+}
+
+export async function getConnectionHealth(userId: string): Promise<ConnectionHealth> {
+  const { data, error } = await createAdminClient()
+    .from("google_connections")
+    .select("broken_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  // Before migration 0010 the column is missing: treat as healthy.
+  if (error) return { missing: false, brokenAt: null };
+  return { missing: !data, brokenAt: (data?.broken_at as string | null) ?? null };
+}
+
 export async function getGoogleAccessToken(userId: string): Promise<string> {
   const hit = cache.get(userId);
   if (hit && hit.expiresAt > Date.now() + 60_000) return hit.token;
@@ -65,7 +94,10 @@ export async function getGoogleAccessToken(userId: string): Promise<string> {
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     // invalid_grant = user revoked access or the token expired.
-    if (body.error === "invalid_grant") throw new GoogleNotConnectedError();
+    if (body.error === "invalid_grant") {
+      await markConnectionBroken(userId);
+      throw new GoogleNotConnectedError();
+    }
     throw new Error(`Google token yenilenemedi (${res.status})`);
   }
 

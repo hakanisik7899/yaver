@@ -35,7 +35,7 @@ export async function getPrefs(userId: string): Promise<NotificationPrefs> {
 }
 
 export interface PushMessage {
-  kind: NotificationKind | "test";
+  kind: NotificationKind | "test" | "connection";
   /** Dedupe key within the kind, e.g. "<event id>:<start>" or a date. */
   refKey: string;
   title: string;
@@ -61,7 +61,8 @@ export async function notifyUser(
 
   if (!force) {
     const p = prefs ?? (await getPrefs(userId));
-    if (msg.kind !== "test" && !p[msg.kind]) return "disabled";
+    // Kinds without a switch (e.g. "connection") are always on, quiet hours still apply.
+    if (msg.kind !== "test" && msg.kind !== "connection" && !p[msg.kind]) return "disabled";
     if (isQuietTime(localTimeHHMM(), p.quiet_start, p.quiet_end)) return "quiet";
   }
 

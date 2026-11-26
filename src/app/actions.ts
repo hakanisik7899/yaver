@@ -10,6 +10,7 @@ import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { notifyUser } from "@/lib/notifications/send";
 import { getPlan } from "@/lib/plans/usage";
+import { currentAdminId } from "@/lib/admin/server";
 import { executeApprovedAction, rejectAction, registry } from "@/lib/tools";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
 import { allowedModes, defaultMode } from "@/lib/tools/policy";
@@ -277,4 +278,34 @@ export async function declineAction(actionId: string) {
   const ok = await rejectAction(createSupabaseActionStore(), userId, actionId);
   revalidatePath("/");
   return { ok };
+}
+
+const AdminPlan = z.object({
+  userId: z.uuid(),
+  plan: z.enum(["free", "pro"]),
+  /** Pro for this many days; null = no end date. Ignored for free. */
+  days: z.number().int().min(1).max(3650).nullable(),
+});
+
+/** Admin page: assigns a plan by hand (no payments yet). */
+export async function adminSetPlan(input: { userId: string; plan: string; days: number | null }) {
+  if (!(await currentAdminId())) return { ok: false as const, message: "Yetkin yok." };
+  const parsed = AdminPlan.safeParse(input);
+  if (!parsed.success) return { ok: false as const, message: "Geçersiz istek." };
+  const { userId, plan, days } = parsed.data;
+  const { error } = await createAdminClient()
+    .from("user_plans")
+    .upsert({
+      user_id: userId,
+      plan,
+      pro_until: plan === "pro" && days ? new Date(Date.now() + days * 86_400_000).toISOString() : null,
+      note: "admin",
+      updated_at: new Date().toISOString(),
+    });
+  if (error) {
+    console.error("adminSetPlan failed", error);
+    return { ok: false as const, message: "Kaydedilemedi." };
+  }
+  revalidatePath("/admin");
+  return { ok: true as const };
 }
