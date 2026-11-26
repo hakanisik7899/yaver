@@ -4,13 +4,19 @@ import { todayLocal } from "@/lib/time";
 import { effectivePlan, PLAN_LIMITS, type Plan } from "./plans";
 
 export async function getPlan(userId: string): Promise<Plan> {
+  return (await getPlanDetails(userId)).plan;
+}
+
+/** The plan plus when Pro ends (null = no end date, or not Pro). */
+export async function getPlanDetails(userId: string): Promise<{ plan: Plan; proUntil: string | null }> {
   const { data, error } = await createAdminClient()
     .from("user_plans")
     .select("plan, pro_until")
     .eq("user_id", userId)
     .maybeSingle();
   if (error) console.error("getPlan failed", error);
-  return effectivePlan(data);
+  const plan = effectivePlan(data);
+  return { plan, proUntil: plan === "pro" ? ((data?.pro_until as string | null) ?? null) : null };
 }
 
 export interface Usage {

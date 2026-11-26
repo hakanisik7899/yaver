@@ -7,6 +7,7 @@ import { BriefingCard, BriefingSkeleton } from "./briefing-card";
 import { Card, CardLoading } from "./card";
 import { Chat } from "./chat";
 import { ConnectionsCard } from "./connections-card";
+import { Onboarding } from "./onboarding";
 import { PendingActions } from "./pending-actions";
 import { TasksPanel } from "./tasks-panel";
 import { WeatherCard, WeatherSkeleton } from "./weather-card";
@@ -36,9 +37,23 @@ function ChatSkeleton() {
   return <div className="glass min-h-[70dvh] rounded-[2rem] lg:min-h-0" />;
 }
 
+/** Shows the first-run introduction until the user finishes or skips it. */
+async function OnboardingGate() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims?.sub) return null;
+  const { data: settings, error } = await supabase.from("user_settings").select("onboarded_at").maybeSingle();
+  // Column missing (migration 0011 not run yet): don't show it at all.
+  if (error || settings?.onboarded_at) return null;
+  return <Onboarding />;
+}
+
 export default function HomePage({ searchParams }: PageProps<"/">) {
   return (
     <AppShell active="home">
+      <Suspense fallback={null}>
+        <OnboardingGate />
+      </Suspense>
       {/*
         Large screens: everything fits one screen. Chat on the left, cards in
         two columns pinned to the viewport height; long cards scroll inside.

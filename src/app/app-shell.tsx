@@ -4,6 +4,7 @@ import { PLAN_LABEL } from "@/lib/plans/plans";
 import { getPlan } from "@/lib/plans/usage";
 import { createClient } from "@/lib/supabase/server";
 import { ConnectionBanner } from "./connection-banner";
+import { FeedbackButton } from "./feedback-button";
 import { currentAdminId } from "@/lib/admin/server";
 
 type NavKey = "home" | "history" | "trust" | "plan" | "admin";
@@ -170,7 +171,10 @@ export function AppShell({ active, children }: { active: NavKey; children: React
             <AdminLink variant="rail" active={active === "admin"} />
           </Suspense>
         </nav>
-        <div className="mt-auto border-t border-[var(--border)] pt-4">
+        <div className="mt-auto pb-2">
+          <FeedbackButton variant="rail" />
+        </div>
+        <div className="border-t border-[var(--border)] pt-4">
           <Suspense fallback={<div className="h-10" />}>
             <UserCard />
           </Suspense>
@@ -183,7 +187,7 @@ export function AppShell({ active, children }: { active: NavKey; children: React
           <Link href="/" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element -- static SVG icon */}
             <img src="/icon.svg" alt="" width={28} height={28} className="rounded-lg" />
-            <span className="font-display text-lg font-semibold">Yaver</span>
+            <span className="font-display text-lg font-semibold max-[420px]:hidden">Yaver</span>
           </Link>
           <nav className="flex items-center gap-1">
             {NAV.map((n) => (
@@ -192,6 +196,7 @@ export function AppShell({ active, children }: { active: NavKey; children: React
             <Suspense fallback={null}>
               <AdminLink variant="phone" active={active === "admin"} />
             </Suspense>
+            <FeedbackButton variant="phone" />
             <form action="/auth/signout" method="post">
               <button aria-label="Çıkış yap" className="rounded-xl p-2 text-[var(--muted)]">
                 <NavIcon>

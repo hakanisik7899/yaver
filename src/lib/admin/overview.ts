@@ -18,7 +18,31 @@ export interface AdminUserRow {
   web7d: number;
 }
 
+export interface WaitlistRow {
+  id: string;
+  email: string;
+  name: string | null;
+  note: string | null;
+  status: "pending" | "invited" | "rejected";
+  createdAt: string;
+  /** Already signed in to Yaver with this address. */
+  joined: boolean;
+}
+
+export interface FeedbackRow {
+  id: string;
+  email: string;
+  kind: "bug" | "idea" | "other";
+  message: string;
+  page: string | null;
+  userAgent: string | null;
+  status: "new" | "done";
+  createdAt: string;
+}
+
 export interface AdminOverview {
+  waitlist: WaitlistRow[];
+  feedback: FeedbackRow[];
   users: AdminUserRow[];
   totals: {
     users: number;
@@ -39,12 +63,18 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
   const today = todayLocal();
   const weekStart = addDays(today, -6);
 
-  const [usersRes, plansRes, connRes, usageRes] = await Promise.all([
+  const [usersRes, plansRes, connRes, usageRes, waitRes, fbRes] = await Promise.all([
     db.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     db.from("user_plans").select("user_id, plan, pro_until"),
     // Never select refresh_token here.
     db.from("google_connections").select("user_id, broken_at"),
     db.from("usage_daily").select("user_id, day, messages, web_searches").gte("day", weekStart),
+    db.from("waitlist").select("id, email, name, note, status, created_at").order("created_at", { ascending: false }).limit(300),
+    db
+      .from("feedback")
+      .select("id, user_id, kind, message, page, user_agent, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
   if (usersRes.error) throw usersRes.error;
 
@@ -84,8 +114,32 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
   });
   users.sort((a, b) => b.messages7d - a.messages7d || b.createdAt.localeCompare(a.createdAt));
 
+  const emailById = new Map(users.map((u) => [u.id, u.email]));
+  const joinedEmails = new Set(users.map((u) => u.email.toLowerCase()));
+  const waitlist: WaitlistRow[] = (waitRes.data ?? []).map((w) => ({
+    id: w.id,
+    email: w.email,
+    name: w.name,
+    note: w.note,
+    status: w.status,
+    createdAt: w.created_at,
+    joined: joinedEmails.has(String(w.email).toLowerCase()),
+  }));
+  const feedback: FeedbackRow[] = (fbRes.data ?? []).map((f) => ({
+    id: f.id,
+    email: emailById.get(f.user_id) ?? "(silinmiş kullanıcı)",
+    kind: f.kind,
+    message: f.message,
+    page: f.page,
+    userAgent: f.user_agent,
+    status: f.status,
+    createdAt: f.created_at,
+  }));
+
   const sum = (f: (u: AdminUserRow) => number) => users.reduce((n, u) => n + f(u), 0);
   return {
+    waitlist,
+    feedback,
     users,
     totals: {
       users: users.length,

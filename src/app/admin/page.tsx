@@ -2,10 +2,20 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { loadAdminOverview, type AdminUserRow } from "@/lib/admin/overview";
 import { currentAdminId } from "@/lib/admin/server";
-import { PLAN_LABEL } from "@/lib/plans/plans";
+import { PLAN_LABEL, TRIAL_DAYS } from "@/lib/plans/plans";
 import { USER_TZ } from "@/lib/time";
 import { AppShell } from "../app-shell";
+import { CopyBox, FeedbackDone, WaitlistActions } from "./beta-controls";
 import { PlanControl } from "./plan-control";
+
+const SITE = "https://yaver-six.vercel.app";
+const FEEDBACK_KIND = { bug: "🐞 Hata", idea: "💡 Öneri", other: "💬 Diğer" } as const;
+const WAIT_STATUS = { pending: "Bekliyor", invited: "Davet edildi", rejected: "Reddedildi" } as const;
+const INVITE_TEXT =
+  `Merhaba! Yaver kapalı betasına davet edildin 🎉 ${SITE} adresini aç ve listeye yazdığın Gmail hesabıyla ` +
+  `"Google ile devam et" de. Google "doğrulanmamış uygulama" uyarısı gösterirse "Gelişmiş → Yaver'e git" demen ` +
+  `yeterli (beta olduğumuz için). İlk ${TRIAL_DAYS} gün Pro'nun tüm özellikleri açık. Görüşlerini uygulamadaki ` +
+  `geri bildirim düğmesinden yazarsan çok sevinirim.`;
 
 export const metadata = { title: "Yönetim · Yaver" };
 
@@ -33,7 +43,11 @@ const GOOGLE: Record<AdminUserRow["google"], { text: string; className: string }
 async function Overview() {
   // Not an admin: the page does not exist for them (checked before any data is read).
   if (!(await currentAdminId())) notFound();
-  const { users, totals } = await loadAdminOverview();
+  const { users, totals, waitlist, feedback } = await loadAdminOverview();
+  const pendingWait = waitlist.filter((w) => w.status === "pending");
+  const decidedWait = waitlist.filter((w) => w.status !== "pending").slice(0, 30);
+  const openFeedback = feedback.filter((f) => f.status === "new");
+  const doneFeedback = feedback.filter((f) => f.status === "done").slice(0, 20);
   return (
     <>
       <section className="glass rise space-y-3 rounded-3xl p-5">
@@ -48,6 +62,70 @@ async function Overview() {
           <p className="text-sm text-amber-300">
             {totals.brokenConnections} kullanıcının Google bağlantısı kopmuş; yeniden bağlanmaları gerekiyor.
           </p>
+        )}
+      </section>
+
+      <section className="glass rise space-y-3 rounded-3xl p-5" style={{ animationDelay: "40ms" }}>
+        <h2 className="font-medium">
+          Geri bildirimler{" "}
+          {openFeedback.length > 0 && <span className="text-sm text-[var(--accent-2)]">· {openFeedback.length} yeni</span>}
+        </h2>
+        {feedback.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">Henüz geri bildirim yok.</p>
+        ) : (
+          <ul className="divide-y divide-[var(--border)]">
+            {[...openFeedback, ...doneFeedback].map((f) => (
+              <li key={f.id} className={`space-y-1.5 py-3 ${f.status === "done" ? "opacity-50" : ""}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-[var(--muted)]">
+                    {FEEDBACK_KIND[f.kind]} · {f.email} · {day(f.createdAt)}
+                    {f.page ? ` · ${f.page}` : ""}
+                  </p>
+                  <FeedbackDone id={f.id} done={f.status === "done"} />
+                </div>
+                <p className="whitespace-pre-wrap text-sm">{f.message}</p>
+                {f.userAgent && <p className="truncate text-[0.7rem] text-[var(--muted)]">{f.userAgent}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="glass rise space-y-3 rounded-3xl p-5" style={{ animationDelay: "60ms" }}>
+        <h2 className="font-medium">
+          Beta bekleme listesi{" "}
+          {pendingWait.length > 0 && <span className="text-sm text-[var(--accent-2)]">· {pendingWait.length} bekliyor</span>}
+        </h2>
+        <p className="text-xs text-[var(--muted)]">
+          Davet için: adresleri Google Cloud → Google Auth Platform → Audience → Test users&apos;a ekle, &quot;Davet
+          ettim&quot;e bas ve kişiye davet mesajını gönder. Yeni kullanıcılar ilk girişte {TRIAL_DAYS} gün Pro alır. Liste
+          sayfası: {SITE}/beta
+        </p>
+        {pendingWait.length > 0 && (
+          <CopyBox label="Bekleyen adresler (Google Cloud'a toplu yapıştırmak için)" text={pendingWait.map((w) => w.email).join(", ")} rows={2} />
+        )}
+        <CopyBox label="Davet mesajı" text={INVITE_TEXT} rows={4} />
+        {waitlist.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">Listede henüz kimse yok.</p>
+        ) : (
+          <ul className="divide-y divide-[var(--border)]">
+            {[...pendingWait, ...decidedWait].map((w) => (
+              <li key={w.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 text-sm">
+                  <p className="truncate">
+                    {w.email}
+                    {w.name ? <span className="text-[var(--muted)]"> · {w.name}</span> : null}
+                  </p>
+                  <p className="text-xs text-[var(--muted)]">
+                    {day(w.createdAt)} · {WAIT_STATUS[w.status]}
+                    {w.joined ? " · giriş yaptı ✓" : ""}
+                  </p>
+                  {w.note && <p className="mt-1 text-xs">&ldquo;{w.note}&rdquo;</p>}
+                </div>
+                <WaitlistActions id={w.id} status={w.status} />
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

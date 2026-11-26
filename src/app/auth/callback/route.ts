@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { GOOGLE_SCOPES_LABEL } from "@/lib/google/scopes";
+import { TRIAL_DAYS } from "@/lib/plans/plans";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -38,6 +39,21 @@ export async function GET(request: NextRequest) {
       console.error("Failed to store Google refresh token", saveError);
     }
   }
+
+  // First sign-in: a Pro trial. Users who already have a plan row (an
+  // earlier trial, or a plan set by the admin) are left alone.
+  const { error: trialError } = await createAdminClient()
+    .from("user_plans")
+    .upsert(
+      {
+        user_id: data.session.user.id,
+        plan: "pro",
+        pro_until: new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString(),
+        note: "trial",
+      },
+      { onConflict: "user_id", ignoreDuplicates: true },
+    );
+  if (trialError) console.error("Failed to start Pro trial", trialError);
 
   return NextResponse.redirect(`${origin}/`);
 }

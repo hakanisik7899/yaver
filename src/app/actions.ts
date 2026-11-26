@@ -10,7 +10,7 @@ import { getOrCreateBriefing } from "@/lib/briefing/generate";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { notifyUser } from "@/lib/notifications/send";
 import { getPlan } from "@/lib/plans/usage";
-import { currentAdminId } from "@/lib/admin/server";
+import { adminUserIds, currentAdminId } from "@/lib/admin/server";
 import { executeApprovedAction, rejectAction, registry } from "@/lib/tools";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
 import { allowedModes, defaultMode } from "@/lib/tools/policy";
@@ -308,4 +308,85 @@ export async function adminSetPlan(input: { userId: string; plan: string; days: 
   }
   revalidatePath("/admin");
   return { ok: true as const };
+}
+
+const FeedbackInput = z.object({
+  kind: z.enum(["bug", "idea", "other"]),
+  message: z.string().trim().min(3).max(2000),
+  page: z.string().max(200),
+  userAgent: z.string().max(300),
+});
+
+const FEEDBACK_LABEL = { bug: "Hata", idea: "Öneri", other: "Geri bildirim" } as const;
+
+/** In-app feedback: saved for the admin page, and the admins get a push. */
+export async function sendFeedback(input: { kind: string; message: string; page: string; userAgent: string }) {
+  const parsed = FeedbackInput.safeParse(input);
+  if (!parsed.success) return { ok: false as const, message: "Birkaç kelimeyle anlatır mısın?" };
+  const userId = await currentUserId();
+  const { kind, message, page, userAgent } = parsed.data;
+
+  const { data, error } = await createAdminClient()
+    .from("feedback")
+    .insert({ user_id: userId, kind, message, page, user_agent: userAgent })
+    .select("id")
+    .single();
+  if (error) {
+    console.error("sendFeedback failed", error);
+    return { ok: false as const, message: "Gönderilemedi, lütfen tekrar dene." };
+  }
+
+  // Best effort: the feedback is saved even if no push goes out.
+  try {
+    const admins = await adminUserIds();
+    await Promise.all(
+      admins.map((adminId) =>
+        notifyUser(adminId, {
+          kind: "feedback",
+          refKey: data.id as string,
+          title: `Yeni ${FEEDBACK_LABEL[kind].toLowerCase()}: Yaver`,
+          body: message.length > 140 ? `${message.slice(0, 140)}…` : message,
+          url: "/admin",
+        }),
+      ),
+    );
+  } catch (err) {
+    console.error("feedback push failed", err);
+  }
+  return { ok: true as const };
+}
+
+/** Admin page: mark a feedback item handled (or open again). */
+export async function adminSetFeedbackDone(id: string, done: boolean) {
+  if (!(await currentAdminId()) || !z.uuid().safeParse(id).success) return { ok: false as const };
+  const { error } = await createAdminClient()
+    .from("feedback")
+    .update({ status: done ? "done" : "new" })
+    .eq("id", id);
+  revalidatePath("/admin");
+  return { ok: !error };
+}
+
+/** Admin page: waitlist decision, after adding the address in Google Cloud. */
+export async function adminSetWaitlistStatus(id: string, status: "invited" | "rejected" | "pending") {
+  if (!(await currentAdminId()) || !z.uuid().safeParse(id).success) return { ok: false as const };
+  if (!["invited", "rejected", "pending"].includes(status)) return { ok: false as const };
+  const { error } = await createAdminClient()
+    .from("waitlist")
+    .update({ status, decided_at: status === "pending" ? null : new Date().toISOString() })
+    .eq("id", id);
+  revalidatePath("/admin");
+  return { ok: !error };
+}
+
+/** First-run introduction finished or skipped. */
+export async function completeOnboarding() {
+  const userId = await currentUserId();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("user_settings")
+    .upsert({ user_id: userId, onboarded_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  if (error) console.error("completeOnboarding failed", error);
+  revalidatePath("/");
+  return { ok: !error };
 }

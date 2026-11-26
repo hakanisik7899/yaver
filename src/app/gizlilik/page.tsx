@@ -54,6 +54,14 @@ export default function PrivacyPage() {
             <strong>İşlem ve kullanım kayıtları:</strong> Yaver&apos;in hangi veriyi okuduğu ve hangi işlemi
             yaptığı (Güven Merkezi&apos;nde gördüğün işlem kaydı), planın ve günlük kullanım sayıların.
           </li>
+          <li>
+            <strong>Geri bildirimler:</strong> uygulama içinden gönderdiğin mesaj, türü, hangi sayfada olduğun ve
+            tarayıcı bilgin.
+          </li>
+          <li>
+            <strong>Beta bekleme listesi:</strong> listeye katılırken yazdığın e-posta adresi, isteğe bağlı adın ve
+            notun. Yalnızca seni davet etmek için kullanılır; hesabın olmasa da silinmesini isteyebilirsin.
+          </li>
         </ul>
         <p>
           <strong>Ses:</strong> Sesli komutlar tarayıcının konuşma tanıma özelliğiyle yazıya çevrilir; Yaver
@@ -75,6 +83,7 @@ export default function PrivacyPage() {
           <li>Onayladığın işlemleri (takvim etkinliği, e-posta taslağı) gerçekleştirmek,</li>
           <li>Faturalarını ve görevlerini takip etmek, istediğin bildirimleri göndermek,</li>
           <li>Plan limitlerini uygulamak, hizmetin güvenliğini sağlamak ve kötüye kullanımı önlemek,</li>
+          <li>Beta davetlerini yönetmek ve geri bildirimlerinle hizmeti geliştirmek,</li>
           <li>Hangi verinin ne için kullanıldığını sana Güven Merkezi&apos;nde şeffaf biçimde göstermek.</li>
         </ul>
       </Section>

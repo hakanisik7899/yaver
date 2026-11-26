@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // /api/cron routes authenticate with CRON_SECRET instead of a session.
 // Legal pages must be readable without an account (also by Google's review).
-const PUBLIC_PATHS = ["/login", "/auth", "/api/cron", "/gizlilik", "/kullanim-sartlari", "/hesap-silindi"];
+const PUBLIC_PATHS = ["/login", "/auth", "/api/cron", "/gizlilik", "/kullanim-sartlari", "/hesap-silindi", "/beta"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

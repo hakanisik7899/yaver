@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { PLAN_LABEL, PLAN_LIMITS, type Plan } from "@/lib/plans/plans";
-import { getPlan, getUsageToday } from "@/lib/plans/usage";
+import { getPlanDetails, getUsageToday } from "@/lib/plans/usage";
+import { USER_TZ } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "../app-shell";
 
@@ -42,7 +43,7 @@ async function CurrentPlan() {
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (!userId) return null;
-  const [plan, usage] = await Promise.all([getPlan(userId), getUsageToday(userId)]);
+  const [{ plan, proUntil }, usage] = await Promise.all([getPlanDetails(userId), getUsageToday(userId)]);
   const limits = PLAN_LIMITS[plan];
 
   return (
@@ -60,6 +61,15 @@ async function CurrentPlan() {
             {PLAN_LABEL[plan]}
           </span>
         </div>
+        {proUntil && (
+          <p className="text-sm text-[var(--muted)]">
+            Pro süren{" "}
+            <span className="font-medium text-[var(--fg)]">
+              {new Intl.DateTimeFormat("tr-TR", { timeZone: USER_TZ, day: "numeric", month: "long" }).format(new Date(proUntil))}
+            </span>{" "}
+            tarihinde bitiyor; sonra Ücretsiz plana geçersin.
+          </p>
+        )}
         <div className="space-y-3">
           <h2 className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Bugünkü kullanım</h2>
           <Meter label="Mesaj" used={usage.messages} limit={limits.messages} />

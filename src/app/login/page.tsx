@@ -37,6 +37,14 @@ export default function LoginPage() {
           {loading ? "Yönlendiriliyor…" : "Google ile devam et"}
         </button>
         {error && <p className="text-sm text-red-500">{error}</p>}
+        <p className="rounded-xl border border-[var(--border)] px-3 py-2.5 text-xs text-[var(--muted)]">
+          Yaver kapalı betada: yalnızca davet edilen Google hesapları giriş yapabilir. Google &quot;erişim
+          engellendi&quot; derse henüz davetli değilsin;{" "}
+          <Link href="/beta" className="font-medium text-[var(--accent-2)] hover:underline">
+            beta listesine katıl
+          </Link>
+          .
+        </p>
         <p className="text-xs text-[var(--muted)]">
           Takvimini ve e-postalarını okuruz; takvimine bir şey eklemek ya da Gmail&apos;e taslak kaydetmek
           gerektiğinde önce senin onayını isteriz. E-posta göndermeyiz.

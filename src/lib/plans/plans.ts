@@ -14,6 +14,9 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   pro: { messages: 150, webSearches: 20 },
 };
 
+/** Every new user starts with a Pro trial of this many days (closed beta). */
+export const TRIAL_DAYS = 7;
+
 export const PLAN_LABEL: Record<Plan, string> = { free: "Ücretsiz", pro: "Pro" };
 
 /** Turkish reason the Tool Layer returns when a Pro-only tool is called on Free. */
