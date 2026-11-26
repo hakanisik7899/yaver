@@ -9,6 +9,7 @@ import { USER_TZ, addDays, todayLocal } from "@/lib/time";
 import { invokeTool, registry } from "@/lib/tools";
 import type { ToolOutcome } from "@/lib/tools/types";
 import { getPlan } from "@/lib/plans/usage";
+import { recordApiUsage } from "@/lib/usage/record";
 import { createSupabaseActionStore } from "@/lib/tools/supabase-store";
 
 const MODEL = "claude-opus-5-5";
@@ -173,6 +174,8 @@ export async function getOrCreateBriefing(
       },
     ],
   });
+
+  await recordApiUsage(userId, "briefing", response);
 
   if (response.stop_reason === "refusal" || !response.parsed_output) {
     return { ok: false, message: "Özet şu an hazırlanamadı. Biraz sonra tekrar dene." };

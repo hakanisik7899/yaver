@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Plan } from "@/lib/plans/plans";
 import { webSearchAllowance } from "@/lib/plans/plans";
 import { addUsage } from "@/lib/plans/usage";
+import { recordApiUsage } from "@/lib/usage/record";
 import { invokeTool, registry } from "@/lib/tools";
 import { decide } from "@/lib/tools/policy";
 import { getServerTool, SERVER_TOOLS } from "@/lib/tools/server-tools";
@@ -146,6 +147,8 @@ export async function runAgentTurn({
     const message = await stream.finalMessage();
 
     if (message.stop_reason === "refusal") {
+      // A declined turn can still be billed; log it before giving up.
+      await recordApiUsage(userId, "chat", message, countWebSearches(message.content));
       // The turn may hold a cut-off tool call; don't store or run it.
       const text = "Bu isteğe yardımcı olamıyorum. Farklı bir şekilde sormayı deneyebilirsin.";
       onEvent({ type: "text", delta: text });
@@ -164,6 +167,7 @@ export async function runAgentTurn({
     added.push({ role: "assistant", content: message.content });
     await auditServerToolUses(store, userId, conversationId, message.content, onEvent);
     const searches = countWebSearches(message.content);
+    await recordApiUsage(userId, "chat", message, searches);
     if (searches > 0) {
       searchesUsed += searches;
       await addUsage(userId, { webSearches: searches });

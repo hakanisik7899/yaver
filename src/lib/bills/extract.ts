@@ -1,4 +1,5 @@
 import "server-only";
+import { recordApiUsage } from "@/lib/usage/record";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
@@ -43,6 +44,8 @@ Marketing, payment confirmations ("ödemeniz alındı"), shipping notices and ne
 export async function extractBill(
   email: EmailFull,
   pdf?: { filename: string; base64: string },
+  /** Whose scan this is, for the usage log. */
+  userId?: string,
 ): Promise<ExtractedBill | null> {
   const response = await client.messages.parse({
     model: MODEL,
@@ -79,6 +82,8 @@ export async function extractBill(
       },
     ],
   });
+
+  await recordApiUsage(userId ?? null, "bill_scan", response);
 
   const out = response.parsed_output;
   if (response.stop_reason === "refusal" || !out || !out.is_bill || !out.provider) return null;

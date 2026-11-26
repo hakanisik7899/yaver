@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { loadAdminOverview, type AdminUserRow } from "@/lib/admin/overview";
+import { loadAdminOverview, loadAdminTrends, TREND_DAYS, type AdminUserRow } from "@/lib/admin/overview";
+import { DailyBars } from "./daily-bars";
 import { currentAdminId } from "@/lib/admin/server";
 import { PLAN_LABEL, TRIAL_DAYS } from "@/lib/plans/plans";
 import { USER_TZ } from "@/lib/time";
@@ -24,6 +25,36 @@ function day(iso: string | null) {
   return new Intl.DateTimeFormat("tr-TR", { timeZone: USER_TZ, day: "numeric", month: "short" }).format(new Date(iso));
 }
 
+const usdFmt = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function money(v: number) {
+  return v > 0 && v < 0.01 ? "< $0,01" : usdFmt.format(v);
+}
+
+const SOURCE_LABEL: Record<string, string> = { chat: "Sohbet", briefing: "Sabah özeti", bill_scan: "Fatura tarama" };
+
+function perMessage(t: Awaited<ReturnType<typeof loadAdminTrends>>) {
+  const chat = t.bySource.find((b) => b.source === "chat")?.costUsd ?? 0;
+  const messages = t.days.reduce((n, d) => n + d.messages, 0);
+  return messages ? chat / messages : 0;
+}
+
+/** Average 30-day cost of current Pro users: what one Pro subscriber costs per month. */
+function proMonthly(t: Awaited<ReturnType<typeof loadAdminTrends>>, users: AdminUserRow[]) {
+  const pros = users.filter((u) => u.plan === "pro");
+  if (!pros.length) return 0;
+  return pros.reduce((n, u) => n + (t.perUser.get(u.id)?.costUsd ?? 0), 0) / pros.length;
+}
+
+function MoneyStat({ label, value, hint }: { label: string; value: number; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] p-3">
+      <p className="text-xs text-[var(--muted)]">{label}</p>
+      <p className="font-display text-2xl font-semibold">{money(value)}</p>
+      {hint && <p className="text-[0.7rem] text-[var(--muted)]">{hint}</p>}
+    </div>
+  );
+}
+
 function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
     <div className="rounded-2xl border border-[var(--border)] p-3">
@@ -43,7 +74,7 @@ const GOOGLE: Record<AdminUserRow["google"], { text: string; className: string }
 async function Overview() {
   // Not an admin: the page does not exist for them (checked before any data is read).
   if (!(await currentAdminId())) notFound();
-  const { users, totals, waitlist, feedback } = await loadAdminOverview();
+  const [{ users, totals, waitlist, feedback }, trends] = await Promise.all([loadAdminOverview(), loadAdminTrends()]);
   const pendingWait = waitlist.filter((w) => w.status === "pending");
   const decidedWait = waitlist.filter((w) => w.status !== "pending").slice(0, 30);
   const openFeedback = feedback.filter((f) => f.status === "new");
@@ -63,6 +94,60 @@ async function Overview() {
             {totals.brokenConnections} kullanıcının Google bağlantısı kopmuş; yeniden bağlanmaları gerekiyor.
           </p>
         )}
+      </section>
+
+      <section className="glass rise space-y-3 rounded-3xl p-5" style={{ animationDelay: "20ms" }}>
+        <h2 className="font-medium">Son {TREND_DAYS} gün</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <MoneyStat label={`Yapay zekâ maliyeti (${TREND_DAYS} gün)`} value={trends.costTotal} hint={`bugün ${money(trends.costToday)}`} />
+          <MoneyStat
+            label="Aktif kullanıcı başına"
+            value={trends.activeUsers ? trends.costTotal / trends.activeUsers : 0}
+            hint={`${trends.activeUsers} aktif kullanıcı`}
+          />
+          <MoneyStat
+            label="Mesaj başına (sohbet)"
+            value={perMessage(trends)}
+            hint={`${trends.days.reduce((n, d) => n + d.messages, 0)} mesaj`}
+          />
+          <MoneyStat label="Pro kullanıcı başına / ay" value={proMonthly(trends, users)} hint={`${totals.pro} Pro kullanıcı`} />
+        </div>
+        <div className="grid gap-3 lg:grid-cols-3">
+          <DailyBars
+            title="Günlük maliyet"
+            unit="usd"
+            total={money(trends.costTotal)}
+            data={trends.days.map((d) => ({ day: d.day, value: d.costUsd }))}
+          />
+          <DailyBars
+            title="Günlük mesaj"
+            unit="count"
+            total={String(trends.days.reduce((n, d) => n + d.messages, 0))}
+            data={trends.days.map((d) => ({ day: d.day, value: d.messages }))}
+          />
+          <DailyBars
+            title="Günlük aktif kullanıcı"
+            unit="count"
+            total={`${trends.activeUsers} kişi`}
+            data={trends.days.map((d) => ({ day: d.day, value: d.activeUsers }))}
+          />
+        </div>
+        {trends.bySource.length > 0 && (
+          <p className="text-xs text-[var(--muted)]">
+            Maliyet dağılımı:{" "}
+            {trends.bySource.map((b, i) => (
+              <span key={b.source}>
+                {i > 0 && " · "}
+                {SOURCE_LABEL[b.source] ?? b.source}{" "}
+                <span className="font-medium text-[var(--fg)]">{money(b.costUsd)}</span> ({b.calls} çağrı)
+              </span>
+            ))}
+          </p>
+        )}
+        <p className="text-xs text-[var(--muted)]">
+          Maliyet, her API yanıtının token sayılarından liste fiyatlarıyla hesaplanır (Anthropic faturasına yakın,
+          kur ve vergi hariç). Kayıt bu sürümle başladı; önceki günlerde maliyet görünmez.
+        </p>
       </section>
 
       <section className="glass rise space-y-3 rounded-3xl p-5" style={{ animationDelay: "40ms" }}>
@@ -148,6 +233,9 @@ async function Overview() {
                 <span>
                   Web <span className="font-medium text-[var(--fg)]">{u.webToday}</span> / {u.web7d}
                 </span>
+                <span title={`Son ${TREND_DAYS} gün yapay zekâ maliyeti`}>
+                  {money(trends.perUser.get(u.id)?.costUsd ?? 0)}
+                </span>
                 <span className="w-24">
                   <span className={u.plan === "pro" ? "font-medium text-[var(--accent-2)]" : ""}>{PLAN_LABEL[u.plan]}</span>
                   {u.plan === "pro" && u.proUntil && ` · ${day(u.proUntil)}'e kadar`}
@@ -157,7 +245,7 @@ async function Overview() {
             </li>
           ))}
         </ul>
-        <p className="text-xs text-[var(--muted)]">Mesaj ve web sayıları: bugün / son 7 gün.</p>
+        <p className="text-xs text-[var(--muted)]">Mesaj ve web sayıları: bugün / son 7 gün. Tutar: son {TREND_DAYS} günün yapay zekâ maliyeti.</p>
       </section>
     </>
   );

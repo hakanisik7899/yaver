@@ -81,12 +81,12 @@ export async function ensureDailyBillScan(userId: string, { force = false } = {}
     let result: "bill" | "not_bill" | "error" = "not_bill";
     try {
       const email = await getEmail(userId, id, 6000);
-      let bill = await extractBill(email);
+      let bill = await extractBill(email, undefined, userId);
       // Many providers put the amount/date only in the attached PDF.
       const pdf = needsPdf(bill) ? pickBillPdf(email.pdfs) : null;
       if (pdf) {
         const base64 = await getAttachmentBase64(userId, id, pdf.attachmentId);
-        bill = mergeBills(bill, await extractBill(email, { filename: pdf.filename, base64 }));
+        bill = mergeBills(bill, await extractBill(email, { filename: pdf.filename, base64 }, userId));
       }
       if (bill) {
         const { error: insertError } = await db

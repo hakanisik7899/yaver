@@ -154,3 +154,63 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
     },
   };
 }
+
+export const TREND_DAYS = 30;
+
+export interface DailyStat {
+  day: string;
+  messages: number;
+  webSearches: number;
+  activeUsers: number;
+  costUsd: number;
+}
+
+export interface AdminTrends {
+  days: DailyStat[];
+  /** user id -> messages and cost over the period. */
+  perUser: Map<string, { messages: number; costUsd: number }>;
+  bySource: { source: string; costUsd: number; calls: number }[];
+  costTotal: number;
+  costToday: number;
+  /** People who sent at least one message in the period. */
+  activeUsers: number;
+}
+
+/** Last 30 days, aggregated in the database (see migration 0012). */
+export async function loadAdminTrends(): Promise<AdminTrends> {
+  const db = createAdminClient();
+  const to = todayLocal();
+  const from = addDays(to, -(TREND_DAYS - 1));
+  const args = { p_from: from, p_to: to };
+  const [dailyRes, userRes, sourceRes] = await Promise.all([
+    db.rpc("admin_daily_stats", args),
+    db.rpc("admin_user_totals", args),
+    db.rpc("admin_cost_by_source", args),
+  ]);
+  for (const r of [dailyRes, userRes, sourceRes]) if (r.error) console.error("loadAdminTrends", r.error);
+
+  const days: DailyStat[] = ((dailyRes.data ?? []) as Record<string, unknown>[]).map((d) => ({
+    day: String(d.day),
+    messages: Number(d.messages),
+    webSearches: Number(d.web_searches),
+    activeUsers: Number(d.active_users),
+    costUsd: Number(d.cost_usd),
+  }));
+  const perUser = new Map<string, { messages: number; costUsd: number }>();
+  for (const u of (userRes.data ?? []) as Record<string, unknown>[]) {
+    perUser.set(String(u.user_id), { messages: Number(u.messages), costUsd: Number(u.cost_usd) });
+  }
+  const bySource = ((sourceRes.data ?? []) as Record<string, unknown>[]).map((s) => ({
+    source: String(s.source),
+    costUsd: Number(s.cost_usd),
+    calls: Number(s.calls),
+  }));
+  return {
+    days,
+    perUser,
+    bySource,
+    costTotal: days.reduce((n, d) => n + d.costUsd, 0),
+    costToday: days.find((d) => d.day === to)?.costUsd ?? 0,
+    activeUsers: [...perUser.values()].filter((u) => u.messages > 0).length,
+  };
+}
