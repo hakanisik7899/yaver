@@ -9,11 +9,16 @@ import { effectiveMode } from "@/lib/tools/policy";
 import type { PermissionMode } from "@/lib/tools/types";
 import { extractBill } from "./extract";
 
-// Turkish bill wording; sent/drafts/promotions excluded.
-// Also matches mails whose only bill content is a PDF named like an invoice.
+// Turkish and English bill wording (foreign services such as Anthropic, PBC
+// send "Your receipt/invoice from ..." with an Invoice-*.pdf); sent, drafts
+// and promotions excluded. Also matches mails whose only bill content is a
+// PDF named like an invoice.
 const BILL_QUERY =
-  'newer_than:45d (fatura OR "son ödeme" OR ekstre OR "e-arşiv" OR "e-fatura" OR "dönem borcu" OR "ödenecek tutar" OR filename:fatura OR filename:ekstre OR filename:arsiv) -in:sent -in:drafts -category:promotions';
-const SEARCH_LIMIT = 30;
+  'newer_than:45d (fatura OR "son ödeme" OR ekstre OR "e-arşiv" OR "e-fatura" OR "dönem borcu" OR "ödenecek tutar" OR makbuz' +
+  ' OR invoice OR receipt OR "amount due" OR "payment due"' +
+  " OR filename:fatura OR filename:ekstre OR filename:arsiv OR filename:invoice OR filename:receipt OR filename:makbuz)" +
+  " -in:sent -in:drafts -category:promotions";
+const SEARCH_LIMIT = 50;
 const MAX_NEW_PER_RUN = 15; // caps model calls (cost) per user per run
 
 export type ScanResult =
@@ -89,9 +94,12 @@ export async function ensureDailyBillScan(userId: string, { force = false } = {}
         bill = mergeBills(bill, await extractBill(email, { filename: pdf.filename, base64 }, userId));
       }
       if (bill) {
+        // Invoices already charged to a card are kept as paid: they appear in
+        // the bill history without asking the user to pay them again.
+        const row = { user_id: userId, source_message_id: id, ...bill, paid_at: bill.status === "paid" ? new Date().toISOString() : null };
         const { error: insertError } = await db
           .from("bills")
-          .upsert({ user_id: userId, source_message_id: id, ...bill }, { onConflict: "user_id,source_message_id", ignoreDuplicates: true });
+          .upsert(row, { onConflict: "user_id,source_message_id", ignoreDuplicates: true });
         if (insertError) throw insertError;
         result = "bill";
         bills++;

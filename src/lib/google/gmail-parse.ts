@@ -76,14 +76,21 @@ export function pdfAttachments(payload: GmailPart | undefined): PdfAttachment[] 
 
 export const MAX_PDF_BYTES = 5 * 1024 * 1024;
 const BILL_NAME = /fatura|e-?ar[sş]iv|ekstre|hesap.?[öo]zet|invoice|bill|statement/i;
+const RECEIPT_NAME = /makbuz|receipt/i;
 
 /**
  * The PDF most likely to be the bill: small enough to send, preferring
- * names like "fatura", "e-arşiv", "ekstre". Null if none fits.
+ * names like "fatura", "e-arşiv", "ekstre", "invoice", then "receipt".
+ * Null if none fits.
  */
 export function pickBillPdf(pdfs: PdfAttachment[]): PdfAttachment | null {
   const sendable = pdfs.filter((p) => p.size > 0 && p.size <= MAX_PDF_BYTES);
-  return sendable.find((p) => BILL_NAME.test(p.filename)) ?? sendable[0] ?? null;
+  return (
+    sendable.find((p) => BILL_NAME.test(p.filename)) ??
+    sendable.find((p) => RECEIPT_NAME.test(p.filename)) ??
+    sendable[0] ??
+    null
+  );
 }
 
 export function attachmentNames(payload: GmailPart | undefined): string[] {

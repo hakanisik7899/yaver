@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { dueLabel, formatMoney } from "./format";
+import { dueLabel, formatMoney, shortDate } from "./format";
+
+describe("shortDate", () => {
+  it("formats in Türkiye time and tolerates missing values", () => {
+    // 22:30 UTC on the 24th is already the 25th in Türkiye (UTC+3).
+    expect(shortDate("2026-11-24T22:30:00Z")).toMatch(/^25 Kas/);
+    expect(shortDate(null)).toBeNull();
+    expect(shortDate("nope")).toBeNull();
+  });
+});
 
 describe("formatMoney", () => {
   it("formats Turkish lira with Turkish separators", () => {

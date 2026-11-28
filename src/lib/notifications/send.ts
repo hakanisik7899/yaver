@@ -38,6 +38,11 @@ export interface PushMessage {
   kind: NotificationKind | "test" | "connection" | "feedback";
   /** Dedupe key within the kind, e.g. "<event id>:<start>" or a date. */
   refKey: string;
+  /**
+   * More keys this one push covers (e.g. every bill in a grouped reminder).
+   * Claimed together with refKey, so each is never sent again.
+   */
+  extraRefKeys?: string[];
   title: string;
   body: string;
   /** Where a tap on the notification leads. */
@@ -75,13 +80,16 @@ export async function notifyUser(
   if (!subs?.length) return "no_devices";
 
   // Claim the send first: the unique key makes concurrent runs send once.
-  const { error: claimError } = await db.from("notification_log").insert({
-    user_id: userId,
-    kind: msg.kind,
-    ref_key: msg.refKey,
-    title: msg.title,
-    body: msg.body,
-  });
+  // One insert statement, so all keys are claimed together or none.
+  const { error: claimError } = await db.from("notification_log").insert(
+    [msg.refKey, ...(msg.extraRefKeys ?? [])].map((refKey) => ({
+      user_id: userId,
+      kind: msg.kind,
+      ref_key: refKey,
+      title: msg.title,
+      body: msg.body,
+    })),
+  );
   if (claimError) {
     if (claimError.code === "23505") return "duplicate";
     throw claimError;

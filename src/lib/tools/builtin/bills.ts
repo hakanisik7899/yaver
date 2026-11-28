@@ -15,6 +15,9 @@ export const listBills = defineTool({
   description:
     "Lists the user's bills found in their email (provider, amount, last payment date, paid " +
     "or not). Use for questions like 'bu hafta hangi faturalarım var' or when planning payments. " +
+    "Invoices already charged to a card (e.g. subscription receipts such as Anthropic, PBC) are " +
+    "stored as paid: use status 'all' when the user asks about their invoices in general or about " +
+    "one company's invoice, not only about what is left to pay. " +
     "Runs today's email scan first if it has not run yet.",
   kind: "read",
   input: z.strictObject({

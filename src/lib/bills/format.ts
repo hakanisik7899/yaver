@@ -10,6 +10,15 @@ export function formatMoney(amount: number | string | null, currency = "TRY"): s
   }
 }
 
+const SHORT_DATE = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short", timeZone: "Europe/Istanbul" });
+
+/** ISO timestamp -> "25 Kas" in Türkiye time; null if missing or invalid. */
+export function shortDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? null : SHORT_DATE.format(t);
+}
+
 /** Days from `today` to `due` (both YYYY-MM-DD); negative if overdue. */
 export function daysUntil(due: string, today: string): number {
   return Math.round((Date.parse(`${due}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);

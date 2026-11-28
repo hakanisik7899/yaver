@@ -4,8 +4,9 @@ import { listEvents } from "@/lib/google/calendar";
 import { getConnectionHealth, GoogleNotConnectedError } from "@/lib/google/oauth";
 import { getPlan } from "@/lib/plans/usage";
 import { createAdminClient } from "@/lib/supabase/server";
-import { dueLabel, formatMoney } from "@/lib/bills/format";
+import { ensureDailyBillScan } from "@/lib/bills/scan";
 import { addDays, formatTime, nextDayStart, todayLocal } from "@/lib/time";
+import { BILL_LEAD_DAYS, billRefKey, billReminders, type DueBill } from "./bill-reminders";
 import { registry } from "@/lib/tools";
 import { effectiveMode } from "@/lib/tools/policy";
 import type { PermissionMode } from "@/lib/tools/types";
@@ -97,37 +98,52 @@ async function checkUser(userId: string, now: Date): Promise<SendResult[]> {
     results.push(await overdueTasks(userId, today, prefs));
   }
   if (prefs.bills && reads.bills && inDaytime(time)) {
-    results.push(...(await billsDueSoon(userId, today, prefs)));
+    // Bills already found are still reminded while Google is disconnected.
+    results.push(...(await billsDueSoon(userId, today, prefs, googleOk)));
   }
   if (prefs.approvals) results.push(...(await waitingApprovals(userId, now, prefs)));
   return results;
 }
 
-const BILL_LEAD_DAYS = 2;
+/**
+ * Unpaid bills: a reminder BILL_LEAD_DAYS before the last payment date and
+ * one on the day itself, several bills listed in one push. Runs today's
+ * email scan first (once a day, normally already done by the 07:00
+ * briefing), so new bills are found even if the user never opens the app.
+ */
+async function billsDueSoon(userId: string, today: string, prefs: NotificationPrefs, googleOk: boolean) {
+  if (googleOk) {
+    try {
+      await ensureDailyBillScan(userId);
+    } catch (err) {
+      console.error("notify: bill scan failed", userId, err);
+    }
+  }
 
-/** Unpaid bills due within two days (or today), one notification per bill. */
-async function billsDueSoon(userId: string, today: string, prefs: NotificationPrefs) {
-  const { data } = await createAdminClient()
+  const db = createAdminClient();
+  const { data } = await db
     .from("bills")
     .select("id, provider, amount, currency, due_date")
     .eq("user_id", userId)
     .eq("status", "unpaid")
     .gte("due_date", today)
     .lte("due_date", addDays(today, BILL_LEAD_DAYS))
-    .limit(10);
+    .limit(20);
+  const bills = (data ?? []) as DueBill[];
+  if (!bills.length) return [];
+
+  const keys = bills.flatMap((b) => [billRefKey(b.id, "early"), billRefKey(b.id, "due")]);
+  const { data: logged } = await db
+    .from("notification_log")
+    .select("ref_key")
+    .eq("user_id", userId)
+    .eq("kind", "bills")
+    .in("ref_key", keys);
+  const sent = new Set((logged ?? []).map((r) => r.ref_key as string));
+
   return Promise.all(
-    (data ?? []).map((b) =>
-      notifyUser(
-        userId,
-        {
-          kind: "bills",
-          refKey: b.id,
-          title: `${b.provider} faturası: son ödeme ${dueLabel(b.due_date, today)}`,
-          body: `Tutar: ${formatMoney(b.amount, b.currency)}`,
-          url: "/",
-        },
-        { prefs },
-      ),
+    billReminders(bills, today, sent).map(({ refKeys: [refKey, ...extraRefKeys], title, body }) =>
+      notifyUser(userId, { kind: "bills", refKey, extraRefKeys, title, body, url: "/" }, { prefs }),
     ),
   );
 }

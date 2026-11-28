@@ -15,7 +15,7 @@ const KINDS: { key: keyof Omit<NotificationPrefs, "quiet_start" | "quiet_end">; 
   { key: "meetings", label: "Yaklaşan toplantılar", hint: "Başlamadan yaklaşık 15 dakika önce" },
   { key: "briefing", label: "Sabah özeti hazır", hint: "Sessiz saatler bitince, günde bir kez" },
   { key: "overdue_tasks", label: "Gecikmiş görevler", hint: "Saat 09:00'dan sonra, günde bir kez" },
-  { key: "bills", label: "Yaklaşan faturalar", hint: "Son ödeme tarihinden 2 gün önce, gündüz" },
+  { key: "bills", label: "Yaklaşan faturalar", hint: "Son ödeme tarihinden 3 gün önce ve son gün, gündüz" },
   { key: "approvals", label: "Onay bekleyen işlemler", hint: "Bir saatten uzun beklerse, bir kez" },
 ];
 

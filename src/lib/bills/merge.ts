@@ -11,10 +11,14 @@ export function mergeBills(fromText: ExtractedBill | null, fromPdf: ExtractedBil
     currency: fromText.amount !== null ? fromText.currency : fromPdf.currency,
     due_date: fromText.due_date ?? fromPdf.due_date,
     period: fromText.period ?? fromPdf.period,
+    status: fromText.status === "paid" || fromPdf.status === "paid" ? "paid" : "unpaid",
   };
 }
 
-/** The text alone was not enough to track the bill (missing amount or date). */
+/**
+ * The text alone was not enough to track the bill: no amount, or no due date
+ * on a bill still to pay (a paid receipt has no due date).
+ */
 export function needsPdf(bill: ExtractedBill | null): boolean {
-  return bill === null || bill.amount === null || bill.due_date === null;
+  return bill === null || bill.amount === null || (bill.status === "unpaid" && bill.due_date === null);
 }

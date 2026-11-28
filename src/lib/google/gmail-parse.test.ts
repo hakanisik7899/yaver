@@ -22,6 +22,15 @@ describe("pdfAttachments / pickBillPdf", () => {
     expect(pickBillPdf([{ attachmentId: "x", filename: "belge.pdf", size: 100 }])?.attachmentId).toBe("x");
     expect(pickBillPdf([])).toBeNull();
   });
+
+  it("prefers the invoice over the receipt in English mails (e.g. Anthropic, PBC)", () => {
+    const pdfs = [
+      { attachmentId: "r", filename: "Receipt-2481-0093.pdf", size: 40_000 },
+      { attachmentId: "i", filename: "Invoice-AB12CD-0007.pdf", size: 40_000 },
+    ];
+    expect(pickBillPdf(pdfs)?.attachmentId).toBe("i");
+    expect(pickBillPdf([{ attachmentId: "x", filename: "brosur.pdf", size: 9 }, pdfs[0]])?.attachmentId).toBe("r");
+  });
 });
 
 const b64url = (s: string) => Buffer.from(s, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
