@@ -193,6 +193,29 @@ body > * {
   transform-origin: 50% 8%;
   animation: bot-talk 6s ease-in-out infinite;
 }
+/* Chat avatar while a reply is written or read aloud: talks continuously. */
+@keyframes bot-talk-loop {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  20% {
+    transform: scaleY(0.3);
+  }
+  40% {
+    transform: scaleY(0.85);
+  }
+  60% {
+    transform: scaleY(0.25);
+  }
+  80% {
+    transform: scaleY(0.7);
+  }
+}
+.bot-mouth-talk {
+  transform-origin: 50% 8%;
+  animation: bot-talk-loop 0.9s ease-in-out infinite;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .rise,
@@ -200,7 +223,8 @@ body > * {
   .halo-spin,
   .drift,
   .bot-blink,
-  .bot-mouth {
+  .bot-mouth,
+  .bot-mouth-talk {
     animation: none;
   }
 }

@@ -373,7 +373,13 @@ export function Chat({
               ) : (
                 <div key={i} className="flex gap-3">
                   <span className="mt-1" title={PERSONAS[t.persona ?? "general"].label}>
-                    <YaverBot persona={t.persona ?? "general"} variant="avatar" size={32} />
+                    <YaverBot
+                      persona={t.persona ?? "general"}
+                      variant="avatar"
+                      size={32}
+                      // The latest reply "talks" while its text streams in or is read aloud.
+                      talking={i === turns.length - 1 && ((busy && !!t.text) || voice.speaking)}
+                    />
                   </span>
                   <div className="min-w-0 max-w-[90%] space-y-2">
                     {t.tools.length > 0 && (

@@ -28,7 +28,16 @@ interface Box {
 interface Art {
   full: string;
   head: string;
-  face?: { eyesClosed: string; eyes: Box; mouthSkin: string; mouth: string; mouthBox: Box };
+  face?: {
+    eyesClosed: string;
+    eyes: Box;
+    mouthSkin: string;
+    mouth: string;
+    /** Mouth position on the full figure. */
+    mouthBox: Box;
+    /** Same mouth on the head crop used by avatars. */
+    headMouthBox: Box;
+  };
 }
 
 const DEFAULT_ART: Art = {
@@ -40,6 +49,7 @@ const DEFAULT_ART: Art = {
     mouthSkin: "/assistant/yaver-robot-mouth-skin.webp",
     mouth: "/assistant/yaver-robot-mouth.webp",
     mouthBox: { left: 41.034, top: 28.354, width: 13.011, height: 7.622 },
+    headMouthBox: { left: 52.32, top: 63.52, width: 24.96, height: 16 },
   },
 };
 const PERSONA_ART: Partial<Record<PersonaId, Art>> = {};
@@ -58,6 +68,7 @@ export function YaverBot({
   className = "",
   priority = false,
   animated = false,
+  talking = false,
 }: {
   persona?: PersonaId;
   variant?: "hero" | "avatar";
@@ -67,6 +78,8 @@ export function YaverBot({
   priority?: boolean;
   /** Hero only: blink and move the mouth now and then. */
   animated?: boolean;
+  /** Avatar only: move the mouth continuously (while a reply is written or spoken). */
+  talking?: boolean;
 }) {
   // Per-instance gradient id: a hidden copy (desktop vs phone layout) must
   // not own the gradient the visible copy points to.
@@ -86,7 +99,14 @@ export function YaverBot({
         }}
         aria-hidden="true"
       >
-        <Image src={art.head} alt="" width={HEAD} height={HEAD} sizes={`${size}px`} className="h-full w-full object-cover" />
+        {/* unoptimized: the mouth layers below must line up with this exact file */}
+        <Image src={art.head} alt="" width={HEAD} height={HEAD} unoptimized className="h-full w-full object-cover" />
+        {talking && art.face && (
+          <>
+            <Image src={art.face.mouthSkin} alt="" width={1} height={1} unoptimized className="absolute max-w-none" style={pct(art.face.headMouthBox)} />
+            <Image src={art.face.mouth} alt="" width={1} height={1} unoptimized className="bot-mouth-talk absolute max-w-none" style={pct(art.face.headMouthBox)} />
+          </>
+        )}
       </span>
     );
   }
