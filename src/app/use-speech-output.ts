@@ -83,10 +83,11 @@ export function useSpeechOutput({ onDone }: { onDone?: () => void } = {}) {
     if (m === "off" && hasSynthesis()) window.speechSynthesis.cancel();
   }, []);
 
-  const speakNow = useCallback((raw: string) => {
+  const speakNow = useCallback((raw: string, hooks?: { onStart?: () => void; onError?: (error: string) => void }) => {
     const text = toSpeakable(raw);
     if (!text || !hasSynthesis()) return;
     const u = new SpeechSynthesisUtterance(text);
+    if (hooks?.onStart) u.onstart = hooks.onStart;
     u.lang = "tr-TR";
     const voice = turkishVoice();
     if (voice) u.voice = voice;
@@ -101,9 +102,22 @@ export function useSpeechOutput({ onDone }: { onDone?: () => void } = {}) {
       }
     };
     u.onend = done;
-    u.onerror = done;
+    u.onerror = (e) => {
+      done();
+      hooks?.onError?.(e.error);
+    };
     window.speechSynthesis.speak(u);
   }, [maybeDone]);
+
+  /**
+   * Say one short line now, outside a reply (e.g. the welcome). `onStart`
+   * fires when audio really starts; browsers that block speech without a
+   * user gesture fire `onError("not-allowed")` or simply never start.
+   */
+  const say = useCallback(
+    (text: string, hooks?: { onStart?: () => void; onError?: (error: string) => void }) => speakNow(text, hooks),
+    [speakNow],
+  );
 
   /** Add streamed text; speaks every sentence that is complete. */
   const feed = useCallback(
@@ -146,5 +160,5 @@ export function useSpeechOutput({ onDone }: { onDone?: () => void } = {}) {
     window.speechSynthesis.speak(u);
   }, []);
 
-  return { supported, mode, setMode, speaking, feed, flush, cancel, prime };
+  return { supported, mode, setMode, speaking, feed, flush, cancel, prime, say };
 }

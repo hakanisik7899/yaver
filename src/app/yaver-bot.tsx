@@ -78,7 +78,7 @@ export function YaverBot({
   priority?: boolean;
   /** Hero only: blink and move the mouth now and then. */
   animated?: boolean;
-  /** Avatar only: move the mouth continuously (while a reply is written or spoken). */
+  /** Move the mouth continuously (reply being written, or Yaver speaking). Heroes need `animated`. */
   talking?: boolean;
 }) {
   // Per-instance gradient id: a hidden copy (desktop vs phone layout) must
@@ -138,7 +138,7 @@ export function YaverBot({
         {animated && art.face && (
           <>
             <Image src={art.face.mouthSkin} alt="" width={1} height={1} unoptimized className="absolute max-w-none" style={pct(art.face.mouthBox)} />
-            <Image src={art.face.mouth} alt="" width={1} height={1} unoptimized className="bot-mouth absolute max-w-none" style={pct(art.face.mouthBox)} />
+            <Image src={art.face.mouth} alt="" width={1} height={1} unoptimized className={`${talking ? "bot-mouth-talk" : "bot-mouth"} absolute max-w-none`} style={pct(art.face.mouthBox)} />
             <Image src={art.face.eyesClosed} alt="" width={1} height={1} unoptimized className="bot-blink absolute max-w-none" style={pct(art.face.eyes)} />
           </>
         )}

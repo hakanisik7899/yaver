@@ -8,6 +8,7 @@ import { activityLabel } from "@/lib/agent/tool-labels";
 import { nextPersona, PERSONAS } from "@/lib/personas";
 import type { ChatStreamEvent } from "./api/chat/route";
 import { useSpeechInput } from "./use-speech";
+import { useGreeting } from "./use-greeting";
 import { useSpeechOutput, type VoiceReplyMode } from "./use-speech-output";
 import { isStopPhrase } from "@/lib/speech/text";
 import { YaverBot } from "./yaver-bot";
@@ -89,6 +90,15 @@ export function Chat({
         setTimeout(() => handsFreeRef.current && speech.start(), 350);
       }
     },
+  });
+
+  // Spoken welcome with the user's name when Yaver opens on a fresh chat.
+  useGreeting({
+    enabled: !initialConversationId && initialTurns.length === 0,
+    firstName,
+    supported: voice.supported,
+    mode: voice.mode,
+    say: voice.say,
   });
 
   // Voice input: show words live in the input, send when the user stops talking.
@@ -285,6 +295,7 @@ export function Chat({
             <button
               onClick={() => voice.setMode(NEXT_MODE[voice.mode])}
               aria-label={`Sesli yanıt: ${MODE_LABEL[voice.mode]}. Değiştirmek için dokun.`}
+              data-no-greeting
               title="Sesli yanıt ayarı"
               className={`flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2.5 py-1 text-xs ${
                 voice.mode === "off" ? "text-[var(--muted)]" : "text-[var(--fg)]"
@@ -351,13 +362,13 @@ export function Chat({
             {/* Wide chat panel: bubbles flank the orb (container query, not viewport) */}
             <div className="rise mt-8 hidden w-full max-w-4xl grid-cols-[1fr_auto_1fr] items-center gap-6 @2xl:grid" style={{ animationDelay: "200ms" }}>
               <div className="flex flex-col gap-5">{HERO_SUGGESTIONS.slice(0, 2).map((s, i) => bubble(s, i, "left"))}</div>
-              <YaverBot size={220} priority animated />
+              <YaverBot size={220} priority animated talking={voice.speaking} />
               <div className="flex flex-col gap-5">{HERO_SUGGESTIONS.slice(2).map((s, i) => bubble(s, i + 2, "right"))}</div>
             </div>
 
             {/* Narrow chat panel: orb on top, bubbles in a 2×2 grid */}
             <div className="rise mt-5 flex w-full max-w-xl flex-col items-center gap-4 @2xl:hidden" style={{ animationDelay: "200ms" }}>
-              <YaverBot size={130} animated />
+              <YaverBot size={130} animated talking={voice.speaking} />
               <div className="grid w-full grid-cols-2 gap-2.5">{HERO_SUGGESTIONS.map((s, i) => bubble(s, i, "right", true))}</div>
             </div>
           </div>
@@ -437,6 +448,7 @@ export function Chat({
               onClick={speech.listening ? speech.stop : startListening}
               disabled={busy || handsFree}
               aria-label={speech.listening ? "Dinlemeyi bitir" : "Sesle komut ver"}
+              data-no-greeting
               aria-pressed={speech.listening}
               className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border transition disabled:opacity-40 ${
                 speech.listening
@@ -491,6 +503,7 @@ export function Chat({
               type="button"
               onClick={startHandsFree}
               disabled={busy}
+              data-no-greeting
               title="Elini kullanmadan karşılıklı konuş"
               className="flex items-center gap-1.5 rounded-full border border-[var(--border-strong)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-xs font-medium text-[var(--fg)] disabled:opacity-40"
             >
