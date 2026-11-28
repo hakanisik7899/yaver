@@ -163,8 +163,8 @@ export function AppShell({ active, children }: { active: NavKey; children: React
       {/* Desktop rail */}
       <aside className="glass rise sticky top-5 hidden h-[calc(100dvh-2.5rem)] w-[76px] shrink-0 flex-col rounded-3xl p-3 lg:flex 2xl:w-60 2xl:p-4">
         <Link href="/" className="mb-6 flex items-center justify-center gap-2.5 pt-1 2xl:justify-start 2xl:px-2">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static SVG icon */}
-          <img src="/icon.svg" alt="" width={34} height={34} className="rounded-xl" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- small static badge (same art as the tab icon) */}
+          <img src="/assistant/yaver-robot-logo.png" alt="" width={34} height={34} className="rounded-xl" />
           <span className="hidden font-display text-xl font-semibold 2xl:inline">Yaver</span>
           <span className="hidden h-2 w-2 rounded-full bg-[var(--accent-2)] shadow-[0_0_10px_var(--accent-2)] 2xl:inline-block" title="Aktif" />
         </Link>
@@ -192,8 +192,8 @@ export function AppShell({ active, children }: { active: NavKey; children: React
           {/* Row 1: brand + account actions */}
           <div className="flex items-center justify-between gap-2 px-1">
             <Link href="/" className="flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element -- static SVG icon */}
-              <img src="/icon.svg" alt="" width={28} height={28} className="rounded-lg" />
+              {/* eslint-disable-next-line @next/next/no-img-element -- small static badge (same art as the tab icon) */}
+              <img src="/assistant/yaver-robot-logo.png" alt="" width={28} height={28} className="rounded-lg" />
               <span className="font-display text-lg font-semibold">Yaver</span>
             </Link>
             <div className="flex items-center gap-1">

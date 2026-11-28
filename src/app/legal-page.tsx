@@ -9,7 +9,7 @@ export function LegalPage({ title, children }: { title: string; children: ReactN
       <header className="flex items-center justify-between gap-3">
         <Link href="/" className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element -- static SVG icon */}
-          <img src="/icon.svg" alt="" width={30} height={30} className="rounded-lg" />
+          <img src="/logo.svg" alt="" width={30} height={30} className="rounded-lg" />
           <span className="font-display text-lg font-semibold">Yaver</span>
         </Link>
         <nav className="flex gap-4 text-sm text-[var(--muted)]">
