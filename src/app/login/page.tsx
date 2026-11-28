@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { startGoogleSignIn } from "@/lib/google/sign-in";
-import { YaverOrb } from "../yaver-orb";
+import { YaverBot } from "../yaver-bot";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ export default function LoginPage() {
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="glass rise w-full max-w-sm space-y-8 rounded-[2rem] p-8 text-center">
         <div className="space-y-3">
-          <YaverOrb size={170} className="mx-auto" />
+          <YaverBot size={170} className="mx-auto" priority animated />
           <h1 className="font-display text-4xl font-semibold">Yaver</h1>
           <p className="text-sm text-[var(--muted)]">
             Günlük işlerini anlayan, planlayan ve senin onayınla halleden asistanın.

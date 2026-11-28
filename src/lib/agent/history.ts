@@ -1,3 +1,4 @@
+import { nextPersona, type PersonaId } from "../personas";
 import { activityLabel } from "./tool-labels";
 
 /** One bubble in the chat UI. */
@@ -8,6 +9,8 @@ export interface DisplayTurn {
   error?: string;
   /** The error is the daily plan limit (shows a link to the plan page). */
   limit?: boolean;
+  /** Assistant character for this reply, from the tools it used. */
+  persona?: PersonaId;
 }
 
 interface StoredMessage {
@@ -47,6 +50,7 @@ export function toDisplayTurns(messages: StoredMessage[]): DisplayTurn[] {
       if (b.type === "tool_use" && b.name) {
         const label = activityLabel(b.name);
         if (!current.tools.includes(label)) current.tools.push(label);
+        current.persona = nextPersona(current.persona, b.name);
       }
     }
   }

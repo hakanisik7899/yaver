@@ -21,7 +21,7 @@ describe("toDisplayTurns", () => {
 
     expect(turns).toEqual([
       { role: "user", text: "Günümü özetle", tools: [] },
-      { role: "assistant", text: "Bugün 2 toplantın var.", tools: ["Tarih kontrol edildi", "Takvim okundu"] },
+      { role: "assistant", text: "Bugün 2 toplantın var.", tools: ["Tarih kontrol edildi", "Takvim okundu"], persona: "planner" },
       { role: "user", text: "Teşekkürler", tools: [] },
       { role: "assistant", text: "Rica ederim!", tools: [] },
     ]);
@@ -48,6 +48,6 @@ describe("toDisplayTurns", () => {
       { role: "user", content: [{ type: "tool_result" }] },
       { role: "assistant", content: [{ type: "text", text: "Hazır." }] },
     ]);
-    expect(a).toEqual({ role: "assistant", text: "Bakıyorum.\n\nHazır.", tools: ["Görevler okundu"] });
+    expect(a).toEqual({ role: "assistant", text: "Bakıyorum.\n\nHazır.", tools: ["Görevler okundu"], persona: "planner" });
   });
 });

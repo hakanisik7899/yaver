@@ -87,7 +87,7 @@ export async function BriefingCard() {
 
   if (!result.ok) {
     return (
-      <Card title="Bugün" delay={120} fill>
+      <Card title="Bugün" persona="planner" delay={120} fill>
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-[var(--muted)]">{result.message}</p>
           <RefreshBriefingButton />
@@ -107,7 +107,7 @@ export async function BriefingCard() {
   const pct = total === 0 ? null : Math.round((done / total) * 100);
 
   return (
-    <Card title="Bugün" delay={120} fill>
+    <Card title="Bugün" persona="planner" delay={120} fill>
       <div className="flex items-center gap-4">
         <ProgressRing pct={pct} />
         <div className="grid flex-1 gap-1.5">
@@ -172,7 +172,7 @@ export async function BriefingCard() {
 
 export function BriefingSkeleton() {
   return (
-    <Card title="Bugün" delay={120} fill>
+    <Card title="Bugün" persona="planner" delay={120} fill>
       <div className="flex items-center gap-4">
         <div className="h-[96px] w-[96px] animate-pulse rounded-full border-[10px] border-[var(--border)]" />
         <p className="text-sm text-[var(--muted)]">Yaver günün özetini hazırlıyor…</p>

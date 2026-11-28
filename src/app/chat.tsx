@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { DisplayTurn as Turn } from "@/lib/agent/history";
 import { activityLabel } from "@/lib/agent/tool-labels";
+import { nextPersona, PERSONAS } from "@/lib/personas";
 import type { ChatStreamEvent } from "./api/chat/route";
 import { useSpeechInput } from "./use-speech";
 import { useSpeechOutput, type VoiceReplyMode } from "./use-speech-output";
 import { isStopPhrase } from "@/lib/speech/text";
-import { YaverOrb } from "./yaver-orb";
+import { YaverBot } from "./yaver-bot";
 
 // Only things Yaver can actually do today.
 const HERO_SUGGESTIONS = [
@@ -229,7 +230,11 @@ export function Chat({
           }
           else if (e.type === "tool") {
             const label = activityLabel(e.name);
-            updateLast((t) => (t.tools.includes(label) ? t : { ...t, tools: [...t.tools, label] }));
+            updateLast((t) => ({
+              ...t,
+              tools: t.tools.includes(label) ? t.tools : [...t.tools, label],
+              persona: nextPersona(t.persona, e.name),
+            }));
           } else if (e.type === "error") {
             updateLast((t) => ({ ...t, error: e.message }));
             // In a hands-free conversation the user may not be looking.
@@ -346,13 +351,13 @@ export function Chat({
             {/* Wide chat panel: bubbles flank the orb (container query, not viewport) */}
             <div className="rise mt-8 hidden w-full max-w-4xl grid-cols-[1fr_auto_1fr] items-center gap-6 @2xl:grid" style={{ animationDelay: "200ms" }}>
               <div className="flex flex-col gap-5">{HERO_SUGGESTIONS.slice(0, 2).map((s, i) => bubble(s, i, "left"))}</div>
-              <YaverOrb size={220} />
+              <YaverBot size={220} priority animated />
               <div className="flex flex-col gap-5">{HERO_SUGGESTIONS.slice(2).map((s, i) => bubble(s, i + 2, "right"))}</div>
             </div>
 
             {/* Narrow chat panel: orb on top, bubbles in a 2×2 grid */}
             <div className="rise mt-5 flex w-full max-w-xl flex-col items-center gap-4 @2xl:hidden" style={{ animationDelay: "200ms" }}>
-              <YaverOrb size={130} />
+              <YaverBot size={130} animated />
               <div className="grid w-full grid-cols-2 gap-2.5">{HERO_SUGGESTIONS.map((s, i) => bubble(s, i, "right", true))}</div>
             </div>
           </div>
@@ -367,7 +372,9 @@ export function Chat({
                 </div>
               ) : (
                 <div key={i} className="flex gap-3">
-                  <MiniOrb />
+                  <span className="mt-1" title={PERSONAS[t.persona ?? "general"].label}>
+                    <YaverBot persona={t.persona ?? "general"} variant="avatar" size={32} />
+                  </span>
                   <div className="min-w-0 max-w-[90%] space-y-2">
                     {t.tools.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
@@ -491,15 +498,3 @@ export function Chat({
   );
 }
 
-function MiniOrb() {
-  return (
-    <span
-      aria-hidden="true"
-      className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#9fe3ff,#3b7bff_45%,#14246b)] shadow-[0_0_14px_rgba(59,123,255,0.6)]"
-    >
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M7 6l5 6 5-6M12 12v6" />
-      </svg>
-    </span>
-  );
-}

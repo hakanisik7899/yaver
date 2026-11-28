@@ -78,19 +78,19 @@ export default function HomePage({ searchParams }: PageProps<"/">) {
           </div>
 
           <div className="flex flex-col gap-4 lg:min-h-0">
-            <Card title="Onay bekleyenler" delay={180}>
+            <Card title="Onay bekleyenler" persona="general" delay={180}>
               <div className="scroll-quiet max-h-44 overflow-y-auto pr-1">
                 <Suspense fallback={<CardLoading />}>
                   <PendingActions />
                 </Suspense>
               </div>
             </Card>
-            <Card title="Görevler" delay={240} fill>
+            <Card title="Görevler" persona="planner" delay={240} fill>
               <Suspense fallback={<CardLoading />}>
                 <TasksPanel />
               </Suspense>
             </Card>
-            <Card title="Faturalar" delay={300} fill>
+            <Card title="Faturalar" persona="finance" delay={300} fill>
               <Suspense fallback={<CardLoading />}>
                 <BillsPanel />
               </Suspense>

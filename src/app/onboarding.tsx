@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { completeOnboarding } from "./actions";
-import { YaverOrb } from "./yaver-orb";
+import { YaverBot } from "./yaver-bot";
 
 const STEPS = [
   {
@@ -83,7 +83,7 @@ export function Onboarding() {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center">
       <div role="dialog" aria-modal="true" aria-labelledby="ob-title" className="glass rise w-full max-w-md space-y-4 rounded-3xl p-6">
-        {step === 0 && <YaverOrb size={90} className="mx-auto" />}
+        {step === 0 && <YaverBot size={90} className="mx-auto" />}
         <h2 id="ob-title" className="font-display text-xl font-semibold">
           {STEPS[step].title}
         </h2>

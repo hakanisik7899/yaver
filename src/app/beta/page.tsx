@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { YaverOrb } from "../yaver-orb";
+import { YaverBot } from "../yaver-bot";
 import { WaitlistForm } from "./waitlist-form";
 
 export const metadata = { title: "Beta'ya katıl · Yaver" };
@@ -9,7 +9,7 @@ export default function BetaPage() {
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="glass rise w-full max-w-md space-y-6 rounded-[2rem] p-8 text-center">
         <div className="space-y-3">
-          <YaverOrb size={120} className="mx-auto" />
+          <YaverBot size={120} className="mx-auto" />
           <h1 className="font-display text-3xl font-semibold">Yaver kapalı betada</h1>
           <p className="text-sm text-[var(--muted)]">
             Takvimini, e-postalarını ve faturalarını takip eden, planlayan ve yalnızca senin onayınla iş yapan

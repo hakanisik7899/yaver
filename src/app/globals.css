@@ -132,11 +132,75 @@ body > * {
   animation: drift 6s ease-in-out infinite;
 }
 
+/*
+ * Animated YaverBot face layers (see yaver-bot.tsx). Blink: the closed-eye
+ * layer flashes in twice per 7s cycle at uneven times. Mouth: smiles at
+ * rest, then "talks" for about two seconds every 6s (scales from the top
+ * edge, where the upper lip is).
+ */
+@keyframes bot-blink {
+  0%,
+  41%,
+  44.5%,
+  91%,
+  94.5%,
+  100% {
+    opacity: 0;
+  }
+  42%,
+  43.5%,
+  92%,
+  93.5% {
+    opacity: 1;
+  }
+}
+@keyframes bot-talk {
+  0%,
+  58%,
+  100% {
+    transform: scaleY(1);
+  }
+  62% {
+    transform: scaleY(0.35);
+  }
+  66% {
+    transform: scaleY(0.95);
+  }
+  70% {
+    transform: scaleY(0.25);
+  }
+  74% {
+    transform: scaleY(0.8);
+  }
+  78% {
+    transform: scaleY(0.4);
+  }
+  83% {
+    transform: scaleY(1);
+  }
+  87% {
+    transform: scaleY(0.5);
+  }
+  91% {
+    transform: scaleY(1);
+  }
+}
+.bot-blink {
+  opacity: 0;
+  animation: bot-blink 7s linear infinite;
+}
+.bot-mouth {
+  transform-origin: 50% 8%;
+  animation: bot-talk 6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rise,
   .orb-breathe,
   .halo-spin,
-  .drift {
+  .drift,
+  .bot-blink,
+  .bot-mouth {
     animation: none;
   }
 }

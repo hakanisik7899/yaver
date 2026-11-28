@@ -30,7 +30,7 @@ export async function WeatherCard() {
   // Same Trust Center switch as the assistant's weather tool.
   if (decide({ kind: "read" }, perm?.mode as PermissionMode | undefined).run === "deny") {
     return (
-      <Card title="Hava durumu" delay={60}>
+      <Card title="Hava durumu" persona="wellness" delay={60}>
         <p className="text-sm text-[var(--muted)]">
           Hava durumu Güven Merkezi&apos;nde kapalı.{" "}
           <Link href="/trust" className="text-[var(--accent-2)] hover:underline">
@@ -53,7 +53,7 @@ export async function WeatherCard() {
 
   if (!f || f.days.length === 0) {
     return (
-      <Card title="Hava durumu" delay={60}>
+      <Card title="Hava durumu" persona="wellness" delay={60}>
         <CityEditor city={city} />
         <p className="text-sm text-[var(--muted)]">Hava durumu şu an alınamadı.</p>
       </Card>
@@ -65,7 +65,7 @@ export async function WeatherCard() {
   const code = f.current?.code ?? now.code;
 
   return (
-    <Card title="Hava durumu" delay={60}>
+    <Card title="Hava durumu" persona="wellness" delay={60}>
       <CityEditor city={city} />
         <div className="flex items-center gap-4">
           <span className="text-5xl leading-none drop-shadow-[0_0_18px_rgba(95,208,255,0.35)]" aria-hidden="true">
@@ -101,7 +101,7 @@ export async function WeatherCard() {
 
 export function WeatherSkeleton() {
   return (
-    <Card title="Hava durumu" delay={60}>
+    <Card title="Hava durumu" persona="wellness" delay={60}>
       <div className="h-24 animate-pulse rounded-2xl bg-[var(--chip)]" />
     </Card>
   );

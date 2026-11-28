@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type { PersonaId } from "@/lib/personas";
+import { YaverBot } from "./yaver-bot";
 
 /**
  * Glass card used across the dashboard. `delay` staggers the entrance (ms).
@@ -12,6 +14,7 @@ export function Card({
   children,
   delay = 0,
   fill = false,
+  persona,
   className = "",
 }: {
   title: string;
@@ -19,6 +22,8 @@ export function Card({
   children: ReactNode;
   delay?: number;
   fill?: boolean;
+  /** Assistant character shown next to the title (the area this card belongs to). */
+  persona?: PersonaId;
   className?: string;
 }) {
   return (
@@ -27,7 +32,10 @@ export function Card({
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="mb-2.5 flex shrink-0 items-center justify-between gap-3">
-        <h2 className="font-display text-[0.98rem] font-semibold">{title}</h2>
+        <h2 className="flex items-center gap-2 font-display text-[0.98rem] font-semibold">
+          {persona && <YaverBot persona={persona} variant="avatar" size={26} />}
+          {title}
+        </h2>
         {action && (
           <Link href={action.href} className="text-xs font-medium text-[var(--accent-2)] hover:underline">
             {action.label}
